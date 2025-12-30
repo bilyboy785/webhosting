@@ -6,6 +6,12 @@ clear
 
 export PATH="$PATH:/root/.local/bin"
 
+NGINX_CONF_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/nginx.conf"
+NGINX_OPTIM_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/optim.conf"
+NGINX_CACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/cache.conf"
+NGINX_SECURITY_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/security.conf"
+OPCACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/opcache.ini"
+
 function title() {
   echo ""
   echo "=============================="
@@ -27,21 +33,6 @@ function checkreturncode() {
   fi
 }
 
-# function scriptexpandcertificate() {
-#   cat > /root/.local/bin/expandssl <<EOF
-# DOMAIN_NAME=$DOMAIN_NAME
-# echo "Expanding Let's Encrypt certificate for $DOMAIN_NAME"
-# read -rp "Enter additional domain aliases separated by spaces: " DOMAIN_ALIASES_ARRAY
-# IFS=' ' read -r -a DOMAIN_ALIASES_ARRAY <<< "$DOMAIN_ALIASES"
-# LE_DOMAINS="-d $DOMAIN_NAME"
-# for alias in "${DOMAIN_ALIASES[@]}"; do
-#   LE_DOMAINS+=" -d $alias"
-# done
-# /root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt $LE_DOMAINS --agree-tos --email postmaster@$DOMAIN_NAME --non-interactive --expand
-# EOF
-#   chmod +x /root/.local/bin/expandssl
-# }
-
 function systemcheck() {
   if [ "$EUID" -ne 0 ]; then
     echo "❌ This script must be run as root"
@@ -51,26 +42,7 @@ function systemcheck() {
 
 function generateletsencryptcert() {
   subtitle "Generating Let's Encrypt certificate for $DOMAIN_NAME"
-  # Vérification de l'adresse IP du domaine principal
-  SERVER_IP=$(curl -s https://api.ipify.org)
-  DOMAIN_IPS=$(dig +short A "$DOMAIN_NAME" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
-  if ! echo "$DOMAIN_IPS" | grep -q "$SERVER_IP"; then
-    echo "❌ Attention : $DOMAIN_NAME ne pointe pas vers l'IP du serveur ($SERVER_IP). Vérifiez la configuration DNS avant de continuer."
-    read -rp "Appuyez sur Entrée pour continuer quand même, ou Ctrl+C pour annuler..."
-  fi
-  # Vérification pour chaque alias éventuel
-  for alias in "${DOMAIN_ALIASES_ARRAY[@]}"; do
-    [ -z "$alias" ] && continue
-    ALIAS_IPS=$(dig +short A "$alias" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
-    if ! echo "$ALIAS_IPS" | grep -q "$SERVER_IP"; then
-      echo "❌ Attention : $alias ne pointe pas vers l'IP du serveur ($SERVER_IP). Vérifiez la configuration DNS avant de continuer."
-      read -rp "Appuyez sur Entrée pour continuer quand même, ou Ctrl+C pour annuler..."
-    fi
-  done
   LE_DOMAINS="-d $DOMAIN_NAME"
-  for alias in "${DOMAIN_ALIASES_ARRAY[@]}"; do
-    LE_DOMAINS+=" -d $alias"
-  done
   /root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt $LE_DOMAINS --agree-tos --email postmaster@$DOMAIN_NAME --non-interactive --quiet
   checkreturncode $? "Let's Encrypt certificate generation"
 }
@@ -106,15 +78,15 @@ function askforargs() {
   if [[ -n "$PHP_VERSION_ARG" ]]; then
     PHP_VERSION="$PHP_VERSION_ARG"
   else
-    read -rp "Which PHP version will be used ? [7.4, 8.0, 8.2, 8.4, 8.5] (default: 8.4) : " PHP_VERSION
-    PHP_VERSION=${PHP_VERSION:-8.4}
+    echo "Please pass the PHP version as an argument --php <version>"
+    exit 1
   fi
 
   if [[ -n "$DOMAIN_NAME_ARG" ]]; then
     DOMAIN_NAME="$DOMAIN_NAME_ARG"
   else
-    read -rp "Primary domain name e.g., example.com): " DOMAIN_NAME
-    DOMAIN_NAME=${DOMAIN_NAME:-example.com}
+    echo "Please pass the domain name as an argument --domain <domain>"
+    exit 1
   fi
 }
 
@@ -155,7 +127,6 @@ function installphp() {
 
 
   subtitle "Optimizing PHP $PHP_VERSION configuration"
-  OPCACHE_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/9bf89b53108745ef80f36a2cc3070bb527e4a658/opcache.ini"
   curl -fsSL "$OPCACHE_CONFIG_URL" -o "/etc/php/$PHP_VERSION/mods-available/opcache-custom.ini"
   ln -sf /etc/php/$PHP_VERSION/mods-available/opcache-custom.ini /etc/php/$PHP_VERSION/fpm/conf.d/99-opcache-custom.ini > /dev/null 2>&1
   sed -i 's/^memory_limit = .*/memory_limit = 1024M/' /etc/php/$PHP_VERSION/cli/php.ini > /dev/null 2>&1
@@ -182,6 +153,13 @@ EOF
   fi
 }
 
+function createwpcron() {
+  CRON_CMD="*/5 * * * * wp --path=/var/www/${DOMAIN_NAME} cron event run --due-now --quiet > /dev/null 2>&1"
+  crontab -u "$SYSTEM_USER" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
+    (crontab -u "$SYSTEM_USER" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "$SYSTEM_USER" -
+  )
+}
+
 function nginxhttpvhost() {
   subtitle "Setting up Nginx vhost for $DOMAIN_NAME"
   NGINX_HTTP_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/69369286be12f80b6dfb9630cfb66ba7edb17171/nginx.http.conf"
@@ -195,7 +173,7 @@ function nginxhttpvhost() {
 
 function nginxhttpsvhost() {
   subtitle "Finalizing Nginx vhost configuration for WordPress SSL with caching"
-  NGINX_HTTPS_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/6d0309d133a4ae9925a458b2154c4d0492f68b80/nginx.https.conf"
+  NGINX_HTTPS_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/https.conf"
   TMP_NGINX_HTTPS_CONF="/tmp/nginx.https.conf"
   curl -fsSL "$NGINX_HTTPS_CONFIG_URL" -o "$TMP_NGINX_HTTPS_CONF"
   export DOMAIN_NAME SYSTEM_USER
@@ -207,7 +185,7 @@ function nginxhttpsvhost() {
 
 function deployfpmpool() {
   subtitle "Configuring PHP-FPM pool for $DOMAIN_NAME"
-  PHPFPM_POOL_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/4d2dae4b40eec26070b79a6a53263b6b4f172727/fpm.pool.conf"
+  PHPFPM_POOL_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/pool.conf"
   TMP_PHPFPM_POOL_CONF="/tmp/phpfpm.pool.conf"
   curl -fsSL "$PHPFPM_POOL_CONFIG_URL" -o "$TMP_PHPFPM_POOL_CONF"
   export DOMAIN_NAME SYSTEM_USER
@@ -238,8 +216,35 @@ function resume() {
   echo "Database Credentials : $WP_DB_NAME - $WP_DB_USER - $WP_DB_PASS"
 }
 
+function updateconfig() {
+  subtitle "Updating Nginx configuration files from repository"
+  curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
+  curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
+  curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
+  curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
+  if nginx -t > /dev/null 2>&1; then
+    systemctl reload nginx > /dev/null 2>&1
+  else
+    echo "❌ Nginx syntax error after configuration update, please check the configuration!"
+    nginx -t
+    exit 1
+  fi
+  subtitle "Updating PHP configuration files from repository"
+  for dir in /etc/php/*/fpm/conf.d /etc/php/*/cli/conf.d; do
+    PHP_VER=$(echo "$dir" | cut -d'/' -f4)
+    curl -fsSL "$OPCACHE_CONFIG_URL" -o "/etc/php/$PHP_VER/mods-available/opcache-custom.ini"
+    systemctl reload php$PHP_VER-fpm || systemctl restart php$PHP_VER-fpm > /dev/null 2>&1
+  done
+  exit 0
+}
+
 PHP_VERSION_ARG=""
 DOMAIN_NAME_ARG=""
+if [[ $# -eq 0 ]]; then
+  echo "No arguments provided. Proceeding with interactive mode."
+  echo "Usage : $0 [--php <version>] [--domain <domain>]"
+  exit 0
+fi
 while [[ $# -gt 0 ]]; do
   case $1 in
     --php)
@@ -249,6 +254,9 @@ while [[ $# -gt 0 ]]; do
     --domain)
       DOMAIN_NAME_ARG="$2"
       shift 2
+      ;;
+    --update)
+      updateconfig
       ;;
     *)
       shift
@@ -274,7 +282,9 @@ fi
 
 askforargs
 
+
 fpmuseradd
+createwpcron
 
 subtitle "Initialize directories"
 mkdir -p /etc/borgmatic > /dev/null 2>&1
@@ -379,24 +389,20 @@ if ! systemctl is-active --quiet nginx; then
 fi
 checkreturncode $? "Nginx installation"
 
-subtitle "Optimizing Nginx configuration (gzip, performance & security)"
+subtitle "Nginx Configuration"
 rm -f /etc/nginx/conf.d/default.conf > /dev/null 2>&1
 rm -f /etc/nginx/sites-available/default > /dev/null 2>&1
 rm -f /etc/nginx/sites-enabled/default > /dev/null 2>&1
 
-NGINX_CONF_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/05b51ecb698f65ba434e6124c3e71147cef547cd/nginx.conf"
 curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
 checkreturncode $? "Nginx base config"
 
-NGINX_OPTIM_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/2310bb397f428733a4aab3edb1b3797c37d9820c/nginx.optim.conf"
 curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
 checkreturncode $? "Nginx optimization configuration optimization"
 
-NGINX_CACHE_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/4d2dae4b40eec26070b79a6a53263b6b4f172727/nginx.cache.conf"
 curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
 checkreturncode $? "Nginx cache configuration optimization"
 
-NGINX_SECURITY_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/4d2dae4b40eec26070b79a6a53263b6b4f172727/nginx.security.conf"
 curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
 
@@ -413,17 +419,6 @@ nginxcheck
 
 subtitle "Configuring Nginx vhost for WordPress site"
 
-# DNS verification: the domain and aliases must point to the server's IP
-SERVER_IP=$(curl -s https://api.ipify.org)
-ALL_DOMAINS=("$DOMAIN_NAME")
-for dom in "${ALL_DOMAINS[@]}"; do
-  [ -z "$dom" ] && continue
-  DOMAIN_IPS=$(dig +short A "$dom" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
-  if ! echo "$DOMAIN_IPS" | grep -q "$SERVER_IP"; then
-    echo "❌ Warning: $dom does not point to the server's IP ($SERVER_IP). Check DNS configuration before continuing."
-    read -rp "Press Enter to continue anyway, or Ctrl+C to cancel..."
-  fi
-done
 
 nginxhttpvhost
 
@@ -482,7 +477,7 @@ subtitle "Installing backups tools: BorgBackup + Borgmatic"
 pipx install borgbackup > /dev/null 2>&1
 pipx install borgmatic > /dev/null 2>&1
 
-BORGMATIC_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/7ff38e32644ea5109e59286d85726c8b5d73a289/borgmatic.config.yaml"
+BORGMATIC_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/borgmatic/config.yaml"
 TMP_BORGMATIC_CONF="/tmp/borgmatic.config.yaml"
 curl -fsSL "$BORGMATIC_CONFIG_URL" -o "$TMP_BORGMATIC_CONF"
 export HOSTNAME
