@@ -1,0 +1,38 @@
+source_directories:
+  - /var/www/
+  - /etc/nginx
+  - /etc/php/
+repositories:
+  - path: /var/backups/borg/${HOSTNAME}
+    encryption: none
+    storage_quota: 10G
+one_file_system: true
+read_special: true
+local_path: /root/.local/bin/borg
+exclude_patterns:
+  - '*.pyc'
+  - /home/*/.cache
+  - '*/.vim*.tmp'
+  - /etc/ssl
+exclude_caches: true
+exclude_if_present:
+  - .nobackup
+compression: lz4
+archive_name_format: '{hostname}-{now}'
+keep_hourly: 48
+keep_daily: 14
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 2
+checks:
+  - name: repository
+    frequency: 2 weeks
+    max_duration: 3600
+color: true
+verbosity: 1
+syslog_verbosity: 1
+log_file_verbosity: 1
+log_file: /var/log/borgmatic/backup.log
+statistics: true
+mariadb_databases:
+  - name: all
