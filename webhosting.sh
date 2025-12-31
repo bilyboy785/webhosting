@@ -218,19 +218,20 @@ function resume() {
 function updateconfig() {
   cd /opt/nginx-ultimate-bad-bot-blocker && git pull origin master > /dev/null 2>&1
   cd /opt/webhosting && git pull origin main > /dev/null 2>&1
+  cd /root
   subtitle "Updating Nginx configuration files from repository"
   echo " - nginx.conf"
-  ls -sf "$NGINX_CONF_CONFIG_SRC" /etc/nginx/nginx.conf
+  ln -sf "$NGINX_CONF_CONFIG_SRC" /etc/nginx/nginx.conf
   echo " - optim.conf"
-  ls -sf "$NGINX_OPTIM_CONFIG_SRC" /etc/nginx/conf.d/optim.conf
+  ln -sf "$NGINX_OPTIM_CONFIG_SRC" /etc/nginx/conf.d/optim.conf
   echo " - mapping.conf"
-  ls -sf "$NGINX_MAPPING_CONFIG_SRC" /etc/nginx/conf.d/mapping.conf
+  ln -sf "$NGINX_MAPPING_CONFIG_SRC" /etc/nginx/conf.d/mapping.conf
   echo " - cache.conf"
-  ls -sf "$NGINX_CACHE_CONFIG_SRC" /etc/nginx/snippets/cache.conf
+  ln -sf "$NGINX_CACHE_CONFIG_SRC" /etc/nginx/snippets/cache.conf
   echo " - shortpixel.conf"
-  ls -sf "$NGINX_SHORTPIXEL_CONFIG_SRC" /etc/nginx/snippets/shortpixel.conf
+  ln -sf "$NGINX_SHORTPIXEL_CONFIG_SRC" /etc/nginx/snippets/shortpixel.conf
   echo " - security.conf"
-  ls -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
+  ln -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
   echo " - bad-user-agents.conf"
   cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
   echo " - bad-ip-list.conf"
@@ -247,7 +248,7 @@ function updateconfig() {
   subtitle "Updating PHP configuration files from repository"
   for dir in /etc/php/*/fpm/conf.d /etc/php/*/cli/conf.d; do
     PHP_VER=$(echo "$dir" | cut -d'/' -f4)
-    ls -sf "$OPCACHE_CONFIG_URL" "/etc/php/$PHP_VER/mods-available/opcache-custom.ini"
+    ln -sf "$OPCACHE_CONFIG_URL" "/etc/php/$PHP_VER/mods-available/opcache-custom.ini"
     systemctl reload php$PHP_VER-fpm || systemctl restart php$PHP_VER-fpm > /dev/null 2>&1
   done
   exit 0
