@@ -559,7 +559,7 @@ crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
 checkreturncode $? "Config update crontab setup"
 
 subtitle "Start watchtower docker container for automatic docker image updates"
-docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower > /dev/null 2>&1
+docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock docker.io/martinbouillaud/watchtower:latest > /dev/null 2>&1
 checkreturncode $? "Watchtower docker container setup"
 
 resume
