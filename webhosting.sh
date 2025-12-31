@@ -6,16 +6,16 @@ clear
 
 export PATH="$PATH:/root/.local/bin"
 
-NGINX_CONF_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/nginx.conf"
-NGINX_OPTIM_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/optim.conf"
-NGINX_SHORTPIXEL_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/shortpixel.conf"
-NGINX_MAPPING_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/mapping.conf"
-NGINX_CACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/cache.conf"
-NGINX_SECURITY_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/security.conf"
-OPCACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/opcache.ini"
-NGINX_BAD_UA_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-user-agents.list"
-NGINX_BAD_IP_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-ip-addresses.list"
-NGINX_FAKE_GOOGLE_BOT_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/fake-googlebots.list"
+NGINX_CONF_CONFIG_SRC="/opt/webhosting/nginx/nginx.conf"
+NGINX_OPTIM_CONFIG_SRC="/opt/webhosting/nginx/optim.conf"
+NGINX_SHORTPIXEL_CONFIG_SRC="/opt/webhosting/nginx/shortpixel.conf"
+NGINX_MAPPING_CONFIG_SRC="/opt/webhosting/nginx/mapping.conf"
+NGINX_CACHE_CONFIG_SRC="/opt/webhosting/nginx/cache.conf"
+NGINX_SECURITY_CONFIG_SRC="/opt/webhosting/nginx/security.conf"
+OPCACHE_CONFIG_URL="/opt/webhosting/php/opcache.ini"
+NGINX_BAD_UA_LIST_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-user-agents.list"
+NGINX_BAD_IP_LIST_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-ip-addresses.list"
+NGINX_FAKE_GOOGLE_BOT_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/fake-googlebots.list"
 
 function title() {
   echo ""
@@ -132,8 +132,7 @@ function installphp() {
 
 
   subtitle "Optimizing PHP $PHP_VERSION configuration"
-  curl -fsSL "$OPCACHE_CONFIG_URL" -o "/etc/php/$PHP_VERSION/mods-available/opcache-custom.ini"
-  ln -sf /etc/php/$PHP_VERSION/mods-available/opcache-custom.ini /etc/php/$PHP_VERSION/fpm/conf.d/99-opcache-custom.ini > /dev/null 2>&1
+  ln -sf "$OPCACHE_CONFIG_URL" /etc/php/$PHP_VERSION/fpm/conf.d/99-opcache-custom.ini > /dev/null 2>&1
   sed -i 's/^memory_limit = .*/memory_limit = 1024M/' /etc/php/$PHP_VERSION/cli/php.ini > /dev/null 2>&1
   sed -i 's|^;*date.timezone =.*|date.timezone = Europe/Paris|' /etc/php/$PHP_VERSION/cli/php.ini > /dev/null 2>&1
   sed -i 's|^;*date.timezone =.*|date.timezone = Europe/Paris|' /etc/php/$PHP_VERSION/fpm/php.ini > /dev/null 2>&1
@@ -217,25 +216,27 @@ function resume() {
 }
 
 function updateconfig() {
+  cd /opt/nginx-ultimate-bad-bot-blocker && git pull origin master > /dev/null 2>&1
+  cd /opt/webhosting && git pull origin main > /dev/null 2>&1
   subtitle "Updating Nginx configuration files from repository"
   echo " - nginx.conf"
-  curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
+  ls -sf "$NGINX_CONF_CONFIG_SRC" /etc/nginx/nginx.conf
   echo " - optim.conf"
-  curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
+  ls -sf "$NGINX_OPTIM_CONFIG_SRC" /etc/nginx/conf.d/optim.conf
   echo " - mapping.conf"
-  curl -fsSL "$NGINX_MAPPING_CONFIG_URL" -o /etc/nginx/conf.d/mapping.conf
+  ls -sf "$NGINX_MAPPING_CONFIG_SRC" /etc/nginx/conf.d/mapping.conf
   echo " - cache.conf"
-  curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
+  ls -sf "$NGINX_CACHE_CONFIG_SRC" /etc/nginx/snippets/cache.conf
   echo " - shortpixel.conf"
-  curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
+  ls -sf "$NGINX_SHORTPIXEL_CONFIG_SRC" /etc/nginx/snippets/shortpixel.conf
   echo " - security.conf"
-  curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
+  ls -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
   echo " - bad-user-agents.conf"
-  curl -fsSL "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+  cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
   echo " - bad-ip-list.conf"
-  curl -fsSL "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+  cat "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
   echo " - fake-googlebots.conf"
-  curl -fsSL "$NGINX_FAKE_GOOGLE_BOT_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
+  cat "$NGINX_FAKE_GOOGLE_BOT_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
   else
@@ -246,7 +247,7 @@ function updateconfig() {
   subtitle "Updating PHP configuration files from repository"
   for dir in /etc/php/*/fpm/conf.d /etc/php/*/cli/conf.d; do
     PHP_VER=$(echo "$dir" | cut -d'/' -f4)
-    curl -fsSL "$OPCACHE_CONFIG_URL" -o "/etc/php/$PHP_VER/mods-available/opcache-custom.ini"
+    ls -sf "$OPCACHE_CONFIG_URL" "/etc/php/$PHP_VER/mods-available/opcache-custom.ini"
     systemctl reload php$PHP_VER-fpm || systemctl restart php$PHP_VER-fpm > /dev/null 2>&1
   done
   exit 0
@@ -296,6 +297,12 @@ if [[ -f /opt/initialized.flag ]]; then
 fi
 
 askforargs
+
+subtitle "Cloning webhosting repository"
+git clone https://github.com/bilyboy785/webhosting /opt/webhosting --depth 1 > /dev/null 2>&1
+
+subtitle "Cloning nginx-ultimate-bad-bot-blocker repository"
+git clone https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker.git /opt/nginx-ultimate-bad-bot-blocker --depth 1 > /dev/null 2>&1
 
 fpmuseradd
 createwpcron
@@ -409,28 +416,28 @@ rm -f /etc/nginx/conf.d/default.conf > /dev/null 2>&1
 rm -f /etc/nginx/sites-available/default > /dev/null 2>&1
 rm -f /etc/nginx/sites-enabled/default > /dev/null 2>&1
 
-curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
+ln -sf "$NGINX_CONF_CONFIG_SRC" /etc/nginx/nginx.conf
 checkreturncode $? "Nginx base config"
 
-curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
+ln -sf "$NGINX_OPTIM_CONFIG_SRC" /etc/nginx/conf.d/optim.conf
 checkreturncode $? "Nginx optimization configuration optimization"
 
-curl -fsSL "$NGINX_MAPPING_CONFIG_URL" -o /etc/nginx/conf.d/mapping.conf
+ln -sf "$NGINX_MAPPING_CONFIG_SRC" /etc/nginx/conf.d/mapping.conf
 checkreturncode $? "Nginx mapping configuration optimization"
 
-curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
+ln -sf "$NGINX_CACHE_CONFIG_SRC" /etc/nginx/snippets/cache.conf
 checkreturncode $? "Nginx cache configuration optimization"
 
-curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
+ln -sf "$NGINX_SHORTPIXEL_CONFIG_SRC" /etc/nginx/snippets/shortpixel.conf
 checkreturncode $? "Nginx ShortPixel configuration optimization"
 
-curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
+ln -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
 
-curl -fsSL "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
 checkreturncode $? "Nginx bad UA configuration"
 
-curl -fsSL "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+cat "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
 checkreturncode $? "Nginx bad IP configuration"
 
 sed -i 's/^worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
