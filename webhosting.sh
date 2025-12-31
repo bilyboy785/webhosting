@@ -15,6 +15,7 @@ NGINX_SECURITY_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosti
 OPCACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/opcache.ini"
 NGINX_BAD_UA_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-user-agents.list"
 NGINX_BAD_IP_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-ip-addresses.list"
+NGINX_FAKE_GOOGLE_BOT_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/fake-googlebots.list"
 
 function title() {
   echo ""
@@ -217,14 +218,24 @@ function resume() {
 
 function updateconfig() {
   subtitle "Updating Nginx configuration files from repository"
+  echo " - nginx.conf"
   curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
+  echo " - optim.conf"
   curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
+  echo " - mapping.conf"
   curl -fsSL "$NGINX_MAPPING_CONFIG_URL" -o /etc/nginx/conf.d/mapping.conf
+  echo " - cache.conf"
   curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
+  echo " - shortpixel.conf"
   curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
+  echo " - security.conf"
   curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
+  echo " - bad-user-agents.conf"
   curl -fsSL "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+  echo " - bad-ip-list.conf"
   curl -fsSL "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+  echo " - fake-googlebots.conf"
+  curl -fsSL "$NGINX_FAKE_GOOGLE_BOT_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
   else
