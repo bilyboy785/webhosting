@@ -492,9 +492,10 @@ borgmatic config validate > /dev/null 2>&1
 checkreturncode $? "Borgmatic configuration validation"
 borgmatic repo-create > /dev/null 2>&1
 checkreturncode $? "Borgmatic repository creation"
-if [[ ! -f /etc/cron.d/borgmatic ]]; then
-  echo "0 2 * * * /root/.local/bin/borgmatic --syslog-verbosity 1 --log-file /var/log/borgmatic/backup.log" > /etc/cron.d/borgmatic
-fi
+CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --syslog-verbosity 1 --log-file /var/log/borgmatic/backup.log"
+crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
+  (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
+)
 checkreturncode $? "Borgmatic crontab setup"
 
 subtitle "Initial backup with Borgmatic"
