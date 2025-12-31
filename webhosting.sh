@@ -216,27 +216,15 @@ function resume() {
 }
 
 function updateconfig() {
+  subtitle "Updating config repositories"
   cd /opt/nginx-ultimate-bad-bot-blocker && git pull origin master > /dev/null 2>&1
   cd /opt/webhosting && git pull origin main > /dev/null 2>&1
   cd /root
-  subtitle "Updating Nginx configuration files from repository"
-  echo " - nginx.conf"
-  ln -sf "$NGINX_CONF_CONFIG_SRC" /etc/nginx/nginx.conf
-  echo " - optim.conf"
-  ln -sf "$NGINX_OPTIM_CONFIG_SRC" /etc/nginx/conf.d/optim.conf
-  echo " - mapping.conf"
-  ln -sf "$NGINX_MAPPING_CONFIG_SRC" /etc/nginx/conf.d/mapping.conf
-  echo " - cache.conf"
-  ln -sf "$NGINX_CACHE_CONFIG_SRC" /etc/nginx/snippets/cache.conf
-  echo " - shortpixel.conf"
-  ln -sf "$NGINX_SHORTPIXEL_CONFIG_SRC" /etc/nginx/snippets/shortpixel.conf
-  echo " - security.conf"
-  ln -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
-  echo " - bad-user-agents.conf"
+  subtitle "Updating bad user agents list"
   cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
-  echo " - bad-ip-list.conf"
+  subtitle "Updating bad ips list"
   cat "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
-  echo " - fake-googlebots.conf"
+  subtitle "Updating fake google bots list"
   cat "$NGINX_FAKE_GOOGLE_BOT_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
