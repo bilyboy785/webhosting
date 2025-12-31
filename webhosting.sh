@@ -8,6 +8,8 @@ export PATH="$PATH:/root/.local/bin"
 
 NGINX_CONF_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/nginx.conf"
 NGINX_OPTIM_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/optim.conf"
+NGINX_SHORTPIXEL_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/shortpixel.conf"
+NGINX_MAPPING_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/mapping.conf"
 NGINX_CACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/cache.conf"
 NGINX_SECURITY_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/security.conf"
 OPCACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/opcache.ini"
@@ -140,11 +142,6 @@ function fpmuseradd() {
   subtitle "Generating system user for FPM process"
   SYSTEM_USER=$(echo "$DOMAIN_NAME" | tr -d '.-' )
   mkdir -p /var/www/${DOMAIN_NAME} > /dev/null 2>&1
-  cat > /var/www/${DOMAIN_NAME}/info.php <<EOF
-<?php
-phpinfo();
-?>
-EOF
   if ! id "$SYSTEM_USER" &>/dev/null; then
     useradd --shell /bin/bash -d /var/www/${DOMAIN_NAME} -g www-data -G www-data "$SYSTEM_USER" > /dev/null 2>&1
     checkreturncode $? "User $SYSTEM_USER creation"
@@ -154,7 +151,7 @@ EOF
 }
 
 function createwpcron() {
-  CRON_CMD="*/5 * * * * wp --path=/var/www/${DOMAIN_NAME} cron event run --due-now --quiet > /dev/null 2>&1"
+  CRON_CMD="*/5 * * * * wp --path=/var/www/${DOMAIN_NAME} cron event run --due-now"
   crontab -u "$SYSTEM_USER" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
     (crontab -u "$SYSTEM_USER" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "$SYSTEM_USER" -
   )
@@ -220,7 +217,9 @@ function updateconfig() {
   subtitle "Updating Nginx configuration files from repository"
   curl -fsSL "$NGINX_CONF_CONFIG_URL" -o /etc/nginx/nginx.conf
   curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
+  curl -fsSL "$NGINX_MAPPING_CONFIG_URL" -o /etc/nginx/conf.d/mapping.conf
   curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
+  curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
   curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
@@ -271,6 +270,7 @@ if [[ -f /opt/initialized.flag ]]; then
   askforargs
   installphp
   fpmuseradd
+  createwpcron
   deployfpmpool
   nginxhttpvhost
   generateletsencryptcert
@@ -281,7 +281,6 @@ if [[ -f /opt/initialized.flag ]]; then
 fi
 
 askforargs
-
 
 fpmuseradd
 createwpcron
@@ -400,8 +399,14 @@ checkreturncode $? "Nginx base config"
 curl -fsSL "$NGINX_OPTIM_CONFIG_URL" -o /etc/nginx/conf.d/optim.conf
 checkreturncode $? "Nginx optimization configuration optimization"
 
+curl -fsSL "$NGINX_MAPPING_CONFIG_URL" -o /etc/nginx/conf.d/mapping.conf
+checkreturncode $? "Nginx mapping configuration optimization"
+
 curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
 checkreturncode $? "Nginx cache configuration optimization"
+
+curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
+checkreturncode $? "Nginx ShortPixel configuration optimization"
 
 curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
