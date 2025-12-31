@@ -555,7 +555,7 @@ nginxhttpsvhost
 
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
 
-CRON_CMD="0 4 * * * /bin/bash /root/init --update"
+CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --update"
 crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
   (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
 )
