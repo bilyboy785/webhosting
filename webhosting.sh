@@ -13,6 +13,8 @@ NGINX_MAPPING_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhostin
 NGINX_CACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/cache.conf"
 NGINX_SECURITY_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/security.conf"
 OPCACHE_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/opcache.ini"
+NGINX_BAD_UA_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-user-agents.list"
+NGINX_BAD_IP_LIST_URL="https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/refs/heads/master/_generator_lists/bad-ip-addresses.list"
 
 function title() {
   echo ""
@@ -221,6 +223,8 @@ function updateconfig() {
   curl -fsSL "$NGINX_CACHE_CONFIG_URL" -o /etc/nginx/snippets/cache.conf
   curl -fsSL "$NGINX_SHORTPIXEL_CONFIG_URL" -o /etc/nginx/snippets/shortpixel.conf
   curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
+  curl -fsSL "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+  curl -fsSL "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
   else
@@ -293,6 +297,7 @@ mkdir -p /var/log/php > /dev/null 2>&1
 mkdir -p /etc/nginx/snippets > /dev/null 2>&1
 mkdir -p /var/www/letsencrypt > /dev/null 2>&1
 mkdir -p /etc/nginx/ssl/ > /dev/null 2>&1
+mkdir -p /etc/nginx/bots > /dev/null 2>&1
 checkreturncode $? "Directories creation"
 
 subtitle "Updating repositories & installing base packages"
@@ -410,6 +415,12 @@ checkreturncode $? "Nginx ShortPixel configuration optimization"
 
 curl -fsSL "$NGINX_SECURITY_CONFIG_URL" -o /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
+
+curl -fsSL "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+checkreturncode $? "Nginx bad UA configuration"
+
+curl -fsSL "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+checkreturncode $? "Nginx bad IP configuration"
 
 sed -i 's/^worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
 sed -i 's/^worker_connections .*/worker_connections 4096;/' /etc/nginx/nginx.conf || true
