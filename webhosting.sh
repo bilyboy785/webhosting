@@ -219,7 +219,7 @@ function resume() {
 function updateconfig() {
   subtitle "Updating config repositories"
   cd /opt/nginx-ultimate-bad-bot-blocker && git pull origin master > /dev/null 2>&1
-  cd /opt/webhosting && git pull origin main > /dev/null 2>&1
+  cd /opt/webhosting && git pull > /dev/null 2>&1
   cd /root
   subtitle "Updating bad user agents list"
   cat "$NGINX_BAD_UA_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
