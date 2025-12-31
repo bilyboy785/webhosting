@@ -13,9 +13,10 @@ NGINX_MAPPING_CONFIG_SRC="/opt/webhosting/nginx/mapping.conf"
 NGINX_CACHE_CONFIG_SRC="/opt/webhosting/nginx/cache.conf"
 NGINX_SECURITY_CONFIG_SRC="/opt/webhosting/nginx/security.conf"
 OPCACHE_CONFIG_URL="/opt/webhosting/php/opcache.ini"
-NGINX_BAD_UA_LIST_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-user-agents.list"
-NGINX_BAD_IP_LIST_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-ip-addresses.list"
-NGINX_FAKE_GOOGLE_BOT_URL="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/fake-googlebots.list"
+NGINX_BAD_UA_LIST_SRC="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-user-agents.list"
+NGINX_BAD_IP_LIST_SRC="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-ip-addresses.list"
+NGINX_FAKE_GOOGLE_BOT_SRC="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/fake-googlebots.list"
+NGINX_BAD_REFERRER_LIST_SRC="/opt/nginx-ultimate-bad-bot-blocker/_generator_lists/bad-referrers.list"
 
 function title() {
   echo ""
@@ -221,11 +222,13 @@ function updateconfig() {
   cd /opt/webhosting && git pull origin main > /dev/null 2>&1
   cd /root
   subtitle "Updating bad user agents list"
-  cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+  cat "$NGINX_BAD_UA_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
   subtitle "Updating bad ips list"
-  cat "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+  cat "$NGINX_BAD_IP_LIST_SRC" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
   subtitle "Updating fake google bots list"
-  cat "$NGINX_FAKE_GOOGLE_BOT_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
+  cat "$NGINX_FAKE_GOOGLE_BOT_SRC" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
+  subtitle "Updating bad referrers list"
+  cat "$NGINX_BAD_REFERRER_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-referrers.conf
   if nginx -t > /dev/null 2>&1; then
     systemctl reload nginx > /dev/null 2>&1
   else
@@ -423,11 +426,17 @@ checkreturncode $? "Nginx ShortPixel configuration optimization"
 ln -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
 
-cat "$NGINX_BAD_UA_LIST_URL" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
+cat "$NGINX_BAD_UA_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
 checkreturncode $? "Nginx bad UA configuration"
 
-cat "$NGINX_BAD_IP_LIST_URL" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
+cat "$NGINX_BAD_IP_LIST_SRC" | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-ip-list.conf
 checkreturncode $? "Nginx bad IP configuration"
+
+cat "$NGINX_FAKE_GOOGLE_BOT_SRC" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
+checkreturncode $? "Nginx fake Google bots configuration"
+
+cat "$NGINX_BAD_REFERRER_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-referrers.conf
+checkreturncode $? "Nginx bad referrers configuration"
 
 sed -i 's/^worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
 sed -i 's/^worker_connections .*/worker_connections 4096;/' /etc/nginx/nginx.conf || true
