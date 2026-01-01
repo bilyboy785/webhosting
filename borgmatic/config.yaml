@@ -21,10 +21,10 @@ exclude_if_present:
 compression: lz4
 archive_name_format: '{hostname}-{now}'
 keep_hourly: 48
-keep_daily: 14
-keep_weekly: 4
-keep_monthly: 6
-keep_yearly: 2
+keep_daily: 7
+keep_weekly: 2
+keep_monthly: 3
+keep_yearly: 1
 checks:
   - name: repository
     frequency: 2 weeks
