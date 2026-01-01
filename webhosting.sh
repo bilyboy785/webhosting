@@ -513,11 +513,8 @@ pipx install borgbackup > /dev/null 2>&1
 pipx install borgmatic > /dev/null 2>&1
 
 BORGMATIC_CONFIG_SRC="/opt/webhosting/borgmatic/config.yaml"
-TMP_BORGMATIC_CONF="/tmp/borgmatic.config.yaml"
-curl -fsSL "$BORGMATIC_CONFIG_SRC" -o "$TMP_BORGMATIC_CONF"
 export INSTANCE_HOSTNAME=$(hostname -f)
-envsubst '$INSTANCE_HOSTNAME' < "$TMP_BORGMATIC_CONF" > /etc/borgmatic/config.yaml
-rm -f "$TMP_BORGMATIC_CONF"
+envsubst '$INSTANCE_HOSTNAME' < "$BORGMATIC_CONFIG_SRC" > /etc/borgmatic/config.yaml
 
 PASSPHRASE=$(pwgen -cn -1 64) && yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
 echo "BORG_PASSPHRASE=$PASSPHRASE" >> /etc/environment > /dev/null 2>&1
