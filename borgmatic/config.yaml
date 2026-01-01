@@ -7,7 +7,6 @@ repositories:
     encryption: none
     storage_quota: 10G
     label: local
-encryption_passphrase:
 one_file_system: true
 read_special: true
 local_path: /root/.local/bin/borg
