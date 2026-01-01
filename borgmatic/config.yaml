@@ -3,7 +3,7 @@ source_directories:
   - /etc/nginx
   - /etc/php/
 repositories:
-  - path: /var/backups/borg/${HOSTNAME}
+  - path: /var/backups/borg/${INSTANCE_HOSTNAME}
     encryption: none
     storage_quota: 10G
     label: local
