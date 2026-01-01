@@ -327,6 +327,7 @@ apt-get -yq install ca-certificates \
   ufw \
   unzip \
   wget \
+  sshpass \
   python3 \
   python3-venv \
   python3-dev \
@@ -344,6 +345,7 @@ apt-get -yq install ca-certificates \
   libbrotli-dev \
   ca-certificates \
   gnupg \
+  yq \
   lsb-release \
   software-properties-common \
   pipx > /dev/null 2>&1
@@ -366,6 +368,7 @@ fi
 subtitle "Initializing pipx environment"
 pipx ensurepath > /dev/null 2>&1
 echo "\$PATH=\$PATH:/root/.local/bin" >> /etc/environment > /dev/null 2>&1
+echo "DOMAIN_NAME=$DOMAIN_NAME" >> /etc/environment > /dev/null 2>&1
 
 pipx install pwgen > /dev/null 2>&1
 
@@ -515,10 +518,15 @@ curl -fsSL "$BORGMATIC_CONFIG_URL" -o "$TMP_BORGMATIC_CONF"
 export HOSTNAME
 envsubst '$HOSTNAME' < "$TMP_BORGMATIC_CONF" > /etc/borgmatic/config.yaml
 rm -f "$TMP_BORGMATIC_CONF"
+
+PASSPHRASE=$(pwgen -cn -1 64) && yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
+echo "BORG_PASSPHRASE=$PASSPHRASE" >> /etc/environment > /dev/null 2>&1
 borgmatic config validate > /dev/null 2>&1
 checkreturncode $? "Borgmatic configuration validation"
+
 borgmatic repo-create > /dev/null 2>&1
 checkreturncode $? "Borgmatic repository creation"
+
 CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --syslog-verbosity 1 --log-file /var/log/borgmatic/backup.log"
 crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
   (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
@@ -549,6 +557,9 @@ fi
 generateletsencryptcert
 
 nginxhttpsvhost
+
+subtitle "Generating SSH key"
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
 
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
 
