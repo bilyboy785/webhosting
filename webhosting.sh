@@ -512,9 +512,9 @@ subtitle "Installing backups tools: BorgBackup + Borgmatic"
 pipx install borgbackup > /dev/null 2>&1
 pipx install borgmatic > /dev/null 2>&1
 
-BORGMATIC_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/borgmatic/config.yaml"
+BORGMATIC_CONFIG_SRC="/opt/webhosting/borgmatic/config.yaml"
 TMP_BORGMATIC_CONF="/tmp/borgmatic.config.yaml"
-curl -fsSL "$BORGMATIC_CONFIG_URL" -o "$TMP_BORGMATIC_CONF"
+curl -fsSL "$BORGMATIC_CONFIG_SRC" -o "$TMP_BORGMATIC_CONF"
 export HOSTNAME
 envsubst '$HOSTNAME' < "$TMP_BORGMATIC_CONF" > /etc/borgmatic/config.yaml
 rm -f "$TMP_BORGMATIC_CONF"
