@@ -1,0 +1,54 @@
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+action = ufw[application="OpenSSH"]
+findtime = 300
+bantime = 3600
+maxretry = 3
+
+[nginx-forbidden]
+enabled = true
+filter = nginx-forbidden
+logpath = /var/log/nginx/*.access.log
+action = ufw[application="Nginx"]
+maxretry = 10
+findtime = 600
+bantime = 3600
+
+[recidive]
+enabled = true
+logpath = /var/log/fail2ban.log
+filter = recidive
+action = route[blocktype="blackhole"]
+findtime = 86400 ; 1 day
+maxretry = 2
+bantime = 43200 ; 12 hours
+
+[recidive2]
+enabled = true
+filter = recidive
+action = route[blocktype="blackhole"]
+bantime = 86400 ;1 day
+findtime = 604800 ;1 week
+logpath = /var/log/fail2ban.log
+maxretry = 7
+
+[recidive3]
+enabled = true
+filter = recidive
+action = route[blocktype="blackhole"]
+bantime = 604800 ;1 week
+findtime = 2592000 ;1 month
+logpath = /var/log/fail2ban.log
+maxretry = 10
+
+[recidive4]
+enabled = true
+filter = recidive
+action = route[blocktype="blackhole"]
+bantime = 2592000 ;1 month
+findtime = 15552000 ;6 months
+logpath = /var/log/fail2ban.log
+maxretry = 20
