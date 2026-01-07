@@ -572,19 +572,11 @@ pipx inject certbot certbot-dns-cloudflare
 checkreturncode $? "Certbot installation"
 
 subtitle "Configuring Fail2ban"
-if [ -f /etc/fail2ban/jail.local ]; then
-  rm -f /etc/fail2ban/jail.local > /dev/null 2>&1
-fi
-FAIL2BAN_JAIL_SRC="/opt/webhosting/fail2ban/jail.local"
-ln -sf "$FAIL2BAN_JAIL_SRC" /etc/fail2ban/jail.local
-
-if [ -f /etc/fail2ban/jail.conf ]; then
-  rm -f /etc/fail2ban/jail.conf > /dev/null 2>&1
-fi
-FAIL2BAN_CONF_SRC="/opt/webhosting/fail2ban/jail.conf"
-ln -sf "$FAIL2BAN_CONF_SRC" /etc/fail2ban/jail.conf
+rm -f /etc/fail2ban/jail.local > /dev/null 2>&1
+rm -f /etc/fail2ban/jail.conf > /dev/null 2>&1
+ln -sf /opt/webhosting/fail2ban/jail.local /etc/fail2ban/jail.local
+ln -sf /opt/webhosting/fail2ban/jail.conf /etc/fail2ban/jail.conf
 ln -sf /opt/webhosting/fail2ban/filter.d/nginx-forbidden.conf /etc/fail2ban/filter.d/nginx-forbidden.conf
-
 systemctl enable fail2ban
 systemctl restart fail2ban
 checkreturncode $? "Fail2ban configuration"
