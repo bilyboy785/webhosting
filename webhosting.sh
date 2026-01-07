@@ -583,6 +583,8 @@ if [ -f /etc/fail2ban/jail.conf ]; then
 fi
 FAIL2BAN_CONF_SRC="/opt/webhosting/fail2ban/jail.conf"
 ln -sf "$FAIL2BAN_CONF_SRC" /etc/fail2ban/jail.conf
+ln -sf /opt/webhosting/fail2ban/filter.d/nginx-forbidden.conf /etc/fail2ban/filter.d/nginx-forbidden.conf
+
 systemctl enable fail2ban
 systemctl restart fail2ban
 checkreturncode $? "Fail2ban configuration"
