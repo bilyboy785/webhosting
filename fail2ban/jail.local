@@ -17,6 +17,15 @@ maxretry = 10
 findtime = 600
 bantime = 3600
 
+[wordpress]
+enabled = true
+filter = wordpress
+logpath = /var/log/nginx/*.access.log
+action = ufw[application="Nginx"]
+maxretry = 5
+findtime = 600
+bantime = 3600
+
 [recidive]
 enabled = true
 logpath = /var/log/fail2ban.log
