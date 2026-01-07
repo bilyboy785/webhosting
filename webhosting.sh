@@ -577,6 +577,7 @@ rm -f /etc/fail2ban/jail.conf > /dev/null 2>&1
 ln -sf /opt/webhosting/fail2ban/jail.local /etc/fail2ban/jail.local
 ln -sf /opt/webhosting/fail2ban/jail.conf /etc/fail2ban/jail.conf
 ln -sf /opt/webhosting/fail2ban/filter.d/nginx-forbidden.conf /etc/fail2ban/filter.d/nginx-forbidden.conf
+ln -sf /opt/webhosting/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/wordpress.conf
 systemctl enable fail2ban
 systemctl restart fail2ban
 checkreturncode $? "Fail2ban configuration"
