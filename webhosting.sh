@@ -144,6 +144,35 @@ function fpmuseradd() {
     echo "  --> User $SYSTEM_USER already exists, skipping creation"
   fi
 }
+
+function updateallowip() {
+  subtitle "Updating WP-Rocket IPs list"
+  echo "# Wp-Rocket" > /etc/nginx/snippets/whitelist.conf
+  for IP in $(curl -s https://mega.wp-rocket.me/rocket-ips/rocket-ips-plain-ipv4.txt); do
+    echo "allow $IP;" >> /etc/nginx/snippets/whitelist.conf
+  done
+  echo "# BunnyCDN" >> /etc/nginx/snippets/whitelist.conf
+  echo "## IPV4" >> /etc/nginx/snippets/whitelist.conf
+  for IP in $(curl -s https://bunnycdn.com/api/system/edgeserverlist -H "Accept: application/json" | jq -r '.[]'); do
+    echo "allow $IP;" >> /etc/nginx/snippets/whitelist.conf
+  done
+  echo "## IPV6" >> /etc/nginx/snippets/whitelist.conf
+  for IP in $(curl -s https://bunnycdn.com/api/system/edgeserverlist/ipv6 -H "Accept: application/json" | jq -r '.[]'); do
+    echo "allow $IP;" >> /etc/nginx/snippets/whitelist.conf
+  done
+  echo "# Stripe IPs" >> /etc/nginx/snippets/whitelist.conf
+  for ip in $(curl -s https://stripe.com/files/ips/ips_api.txt); do
+    echo "allow $ip;" >> /etc/nginx/snippets/whitelist.conf
+  done
+  for ip in $(curl -s https://stripe.com/files/ips/ips_webhooks.txt); do
+    echo "allow $ip;" >> /etc/nginx/snippets/whitelist.conf
+  done
+  echo "deny all;" >> /etc/nginx/snippets/whitelist.conf
+  if nginx -t; then
+    systemctl reload nginx.service > /dev/null
+  fi
+}
+
 function createwpcron() {
   CRON_CMD="*/5 * * * * wp --path=/var/www/${DOMAIN_NAME} cron event run --due-now"
   if grep -q "cron event run" /var/spool/cron/crontabs/"$SYSTEM_USER" 2>/dev/null; then
@@ -265,6 +294,9 @@ while [[ $# -gt 0 ]]; do
     --update)
       updateconfig
       ;;
+    --whitelist)
+      updateallowip
+      ;;
     *)
       shift
       ;;
@@ -349,6 +381,7 @@ apt-get -yq install ca-certificates \
   pkg-config \
   build-essential \
   libbrotli1 \
+  libxml2-utils \
   imagemagick \
   libbrotli-dev \
   ca-certificates \
@@ -614,6 +647,15 @@ FTP_PASS=$(pwgen --capitalize --numerals -1 22)
 USER_PUID=$(id -u ${SYSTEM_USER})
 docker run -d --restart always --name ftp -p 21:21 -p 21000-21010:21000-21010 -e USERS="${SYSTEM_USER}|${FTP_PASS}|/var/www/${DOMAIN_NAME}|${USER_PUID}" -e ADDDRESS="${DOMAIN_NAME}" -v /var/www/${DOMAIN_NAME}:/var/www/${DOMAIN_NAME} delfer/alpine-ftp-server
 checkreturncode $? "FTP server docker container setup"
+
+subtitle "Setting up Whitelist daily update cron job"
+CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --whitelist"
+if grep -q 'whitelist' /var/spool/cron/crontabs/root 2>/dev/null; then
+  echo "  --> Whitelist cron job already exists for user root, skipping creation"
+else
+  (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
+  checkreturncode $? "Borgmatic crontab setup"
+fi
 
 resume
 
