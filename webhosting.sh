@@ -474,6 +474,9 @@ checkreturncode $? "Nginx ShortPixel configuration optimization"
 ln -sf "$NGINX_SECURITY_CONFIG_SRC" /etc/nginx/snippets/security.conf
 checkreturncode $? "Nginx security configuration optimization"
 
+cp -f /opt/webhosting/nginx/whitelist.conf /etc/nginx/snippets/whitelist.conf
+checkreturncode $? "Nginx whitelist configuration optimization"
+
 cat "$NGINX_BAD_UA_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-user-agents.conf
 checkreturncode $? "Nginx bad UA configuration"
 
