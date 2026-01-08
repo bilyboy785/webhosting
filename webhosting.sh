@@ -151,6 +151,7 @@ function updateallowip() {
   for IP in $(curl -s https://mega.wp-rocket.me/rocket-ips/rocket-ips-plain-ipv4.txt); do
     echo "allow $IP;" >> /etc/nginx/snippets/whitelist.conf
   done
+  subtitle "Updating BunnyCDN IPs list"
   echo "# BunnyCDN" >> /etc/nginx/snippets/whitelist.conf
   echo "## IPV4" >> /etc/nginx/snippets/whitelist.conf
   for IP in $(curl -s https://bunnycdn.com/api/system/edgeserverlist -H "Accept: application/json" | jq -r '.[]'); do
@@ -160,6 +161,7 @@ function updateallowip() {
   for IP in $(curl -s https://bunnycdn.com/api/system/edgeserverlist/ipv6 -H "Accept: application/json" | jq -r '.[]'); do
     echo "allow $IP;" >> /etc/nginx/snippets/whitelist.conf
   done
+  subtitle "Updating Stripe IPs list"
   echo "# Stripe IPs" >> /etc/nginx/snippets/whitelist.conf
   for ip in $(curl -s https://stripe.com/files/ips/ips_api.txt); do
     echo "allow $ip;" >> /etc/nginx/snippets/whitelist.conf
@@ -171,6 +173,7 @@ function updateallowip() {
   if nginx -t; then
     systemctl reload nginx.service > /dev/null
   fi
+  exit 0
 }
 
 function createwpcron() {
