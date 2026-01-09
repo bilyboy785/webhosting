@@ -3,7 +3,7 @@ enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-action = ufw[application="OpenSSH"]
+action = route[blocktype="blackhole"]
 findtime = 300
 bantime = 3600
 maxretry = 3
@@ -12,7 +12,7 @@ maxretry = 3
 enabled = true
 filter = nginx-forbidden
 logpath = /var/log/nginx/*.access.log
-action = ufw[application="Nginx"]
+action = route[blocktype="blackhole"]
 maxretry = 10
 findtime = 600
 bantime = 3600
@@ -21,7 +21,7 @@ bantime = 3600
 enabled = true
 filter = wordpress
 logpath = /var/log/nginx/*.access.log
-action = ufw[application="Nginx"]
+action = route[blocktype="blackhole"]
 maxretry = 5
 findtime = 600
 bantime = 3600
