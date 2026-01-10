@@ -663,6 +663,8 @@ else
   checkreturncode $? "Borgmatic crontab setup"
 fi
 
+chown -R ${SYSTEM_USER}:www-data /var/cache/nginx/${DOMAIN_NAME}
+
 resume
 
 echo "initialized" > /opt/initialized.flag
