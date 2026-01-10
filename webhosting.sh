@@ -178,45 +178,33 @@ function updateallowip() {
 
 function createwpcron() {
   CRON_CMD="*/5 * * * * wp --path=/var/www/${DOMAIN_NAME} cron event run --due-now"
-  if grep -q "cron event run" /var/spool/cron/crontabs/"$SYSTEM_USER" 2>/dev/null; then
-    echo "  --> WordPress cron job already exists for user $SYSTEM_USER, skipping creation"
+  if grep -q "cron event run" "/var/spool/cron/crontabs/${SYSTEM_USER}" 2>/dev/null; then
+    echo "  --> WordPress cron job already exists for user ${SYSTEM_USER}, skipping creation"
   else
-    echo "  --> Creating WordPress cron job for user $SYSTEM_USER"
-    (crontab -u "$SYSTEM_USER" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "$SYSTEM_USER" -
+    echo "  --> Creating WordPress cron job for user ${SYSTEM_USER}"
+    (crontab -u "${SYSTEM_USER}" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "${SYSTEM_USER}" -
   fi
 }
 
 function nginxhttpvhost() {
   subtitle "Setting up Nginx vhost for $DOMAIN_NAME"
-  NGINX_HTTP_CONFIG_URL="https://gist.githubusercontent.com/bilyboy785/7965e619604846e96a284b6a5f962242/raw/69369286be12f80b6dfb9630cfb66ba7edb17171/nginx.http.conf"
-  TMP_NGINX_HTTP_CONF="/tmp/nginx.http.conf"
-  curl -fsSL "$NGINX_HTTP_CONFIG_URL" -o "$TMP_NGINX_HTTP_CONF"
   export DOMAIN_NAME 
-  envsubst '$DOMAIN_NAME' < "$TMP_NGINX_HTTP_CONF" > /etc/nginx/conf.d/${DOMAIN_NAME}.conf
-  rm -f "$TMP_NGINX_HTTP_CONF"
+  envsubst '$DOMAIN_NAME' < "/opt/webhosting/nginx/http.conf" > /etc/nginx/conf.d/${DOMAIN_NAME}.conf
   checkreturncode $? "Nginx vhost for $DOMAIN_NAME setup"
 }
 
 function nginxhttpsvhost() {
   subtitle "Finalizing Nginx vhost configuration for WordPress SSL with caching"
-  NGINX_HTTPS_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/nginx/https.conf"
-  TMP_NGINX_HTTPS_CONF="/tmp/nginx.https.conf"
-  curl -fsSL "$NGINX_HTTPS_CONFIG_URL" -o "$TMP_NGINX_HTTPS_CONF"
   export DOMAIN_NAME SYSTEM_USER
-  envsubst '$DOMAIN_NAME $SYSTEM_USER' < "$TMP_NGINX_HTTPS_CONF" > /etc/nginx/conf.d/${DOMAIN_NAME}.conf
-  rm -f "$TMP_NGINX_HTTPS_CONF"
+  envsubst '$DOMAIN_NAME $SYSTEM_USER' < "/opt/webhosting/nginx/https.conf" > /etc/nginx/conf.d/${DOMAIN_NAME}.conf
   nginxcheck
   checkreturncode $? "Nginx vhost for WordPress SSL with caching setup"
 }
 
 function deployfpmpool() {
   subtitle "Configuring PHP-FPM pool for $DOMAIN_NAME"
-  PHPFPM_POOL_CONFIG_URL="https://raw.githubusercontent.com/bilyboy785/webhosting/refs/heads/main/php/pool.conf"
-  TMP_PHPFPM_POOL_CONF="/tmp/phpfpm.pool.conf"
-  curl -fsSL "$PHPFPM_POOL_CONFIG_URL" -o "$TMP_PHPFPM_POOL_CONF"
   export DOMAIN_NAME SYSTEM_USER
-  envsubst '$DOMAIN_NAME $SYSTEM_USER' < "$TMP_PHPFPM_POOL_CONF" > /etc/php/$PHP_VERSION/fpm/pool.d/${DOMAIN_NAME}.conf
-  rm -f "$TMP_PHPFPM_POOL_CONF"
+  envsubst '$DOMAIN_NAME $SYSTEM_USER' < "/opt/webhosting/php/pool.conf" > /etc/php/$PHP_VERSION/fpm/pool.d/${DOMAIN_NAME}.conf
   rm -f /etc/php/$PHP_VERSION/fpm/pool.d/www.conf
   systemctl restart php$PHP_VERSION-fpm
   checkreturncode $? "PHP-FPM pool for $DOMAIN_NAME configuration"
@@ -520,7 +508,7 @@ subtitle "Setting up WordPress cache directory and webroot"
 chown -R ${SYSTEM_USER}:www-data /var/www/${DOMAIN_NAME}
 chmod 755 /var/www/${DOMAIN_NAME}
 if ! grep -q "/var/cache/nginx" /etc/fstab; then
-  echo "tmpfs /var/cache/nginx tmpfs rw,size=512M,uid=$(id -u www-data),gid=$(id -g www-data),mode=0755 0 0" >> /etc/fstab
+  echo "tmpfs /var/cache/nginx tmpfs rw,size=512M,uid=$(id -u ${SYSTEM_USER}),gid=$(id -g www-data),mode=0755 0 0" >> /etc/fstab
   checkreturncode $? "Fstab entry for WordPress cache directory"
 fi
 mkdir -p /var/cache/nginx/
@@ -529,7 +517,7 @@ chmod 0755 /var/cache/nginx
 systemctl daemon-reload
 mountpoint -q /var/cache/nginx || mount /var/cache/nginx
 mkdir -p /var/cache/nginx/${DOMAIN_NAME}
-chown www-data:www-data /var/cache/nginx/${DOMAIN_NAME}
+chown ${SYSTEM_USER}:www-data /var/cache/nginx/${DOMAIN_NAME}
 if systemctl is-active --quiet nginx; then
   systemctl reload nginx
 fi
@@ -663,7 +651,8 @@ else
   checkreturncode $? "Borgmatic crontab setup"
 fi
 
-chown -R ${SYSTEM_USER}:www-data /var/cache/nginx/${DOMAIN_NAME}
+chown -R ${SYSTEM_USER}:www-data /var/cache/nginx
+chmod -R 2770 /var/cache/nginx
 
 resume
 
