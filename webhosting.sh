@@ -325,6 +325,14 @@ if [[ ! -d /opt/nginx-ultimate-bad-bot-blocker ]]; then
   checkreturncode $? "nginx-ultimate-bad-bot-blocker repository cloning"
 fi
 
+subtitle "Cloning rocket-nginx repository"
+if [[ ! -d /opt/rocket-nginx ]]; then
+  git clone https://github.com/satellitewp/rocket-nginx.git /opt/rocket-nginx --depth 1
+  cp /opt/rocket-nginx/rocket-nginx.ini.disabled /opt/rocket-nginx/rocket-nginx.ini
+  cd /opt/rocket-nginx && php rocket-parser.php
+  checkreturncode $? "rocket-nginx repository cloning"
+fi
+
 fpmuseradd
 
 createwpcron
