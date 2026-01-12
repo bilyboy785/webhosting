@@ -6,6 +6,7 @@ clear
 
 export PATH="$PATH:/root/.local/bin"
 
+CERTBOT_CHALLENGE="http"
 NGINX_CONF_CONFIG_SRC="/opt/webhosting/nginx/nginx.conf"
 NGINX_OPTIM_CONFIG_SRC="/opt/webhosting/nginx/optim.conf"
 NGINX_SHORTPIXEL_CONFIG_SRC="/opt/webhosting/nginx/shortpixel.conf"
@@ -28,9 +29,11 @@ function title() {
   echo "=============================="
   echo ""
 }
+
 function subtitle() {
   echo "# $1"
 }
+
 function checkreturncode() {
   if [ $1 -ne 0 ]; then
     echo "  --> $2 failed with exit code $1"
@@ -39,18 +42,27 @@ function checkreturncode() {
     echo "  --> $2 successfully completed"
   fi
 }
+
 function systemcheck() {
   if [ "$EUID" -ne 0 ]; then
     echo "❌ This script must be run as root"
     exit 1
   fi
 }
+
 function generateletsencryptcert() {
   subtitle "Generating Let's Encrypt certificate for $DOMAIN_NAME"
   LE_DOMAINS="-d $DOMAIN_NAME"
-  /root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt $LE_DOMAINS --agree-tos --email postmaster@$DOMAIN_NAME --non-interactive --quiet
+  CERTBOT_DEFAULT="--agree-tos --email postmaster@$DOMAIN_NAME --non-interactive --quiet"
+  if [[ "$CERTBOT_CHALLENGE" == "dns" ]]; then
+    CERTBOT_PARAM="--dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini $LE_DOMAINS --preferred-challenges dns-01 --dns-cloudflare-propagation-seconds 30"
+  else
+    CERTBOT_PARAM="--webroot -w /var/www/letsencrypt $LE_DOMAINS --preferred-challenges http-01"
+  fi
+  /root/.local/bin/certbot certonly $CERTBOT_PARAM $CERTBOT_DEFAULT 
   checkreturncode $? "Let's Encrypt certificate generation"
 }
+
 function nginxcheck() {
   if nginx -t; then
     systemctl restart nginx > /dev/null
@@ -60,6 +72,7 @@ function nginxcheck() {
     exit 1
   fi
 }
+
 function createdatabase() {
   subtitle "Generating database & user for WordPress"
   WP_DB_NAME=$(echo "$DOMAIN_NAME" | tr -d '.-' )
@@ -74,6 +87,7 @@ EOF
   mariadb < /root/wordpress_init.sql
   checkreturncode $? "WordPress database and user creation"
 }
+
 function askforargs() {
   if [[ -n "$PHP_VERSION_ARG" ]]; then
     PHP_VERSION="$PHP_VERSION_ARG"
@@ -89,6 +103,7 @@ function askforargs() {
     exit 1
   fi
 }
+
 function installphp() {
   subtitle "Configuring repository for Ondřej Surý PPA"
   if ! grep -Rq "ondrej/php" /etc/apt/sources.list*; then
@@ -123,6 +138,8 @@ function installphp() {
     php$PHP_VERSION-apcu
   checkreturncode $? "PHP $PHP_VERSION and extensions installation"
 
+  cd /opt/rocket-nginx && php rocket-parser.php && cd -
+
   subtitle "Optimizing PHP $PHP_VERSION configuration"
   ln -sf "$OPCACHE_CONFIG_URL" /etc/php/$PHP_VERSION/fpm/conf.d/99-opcache-custom.ini
   sed -i 's/^memory_limit = .*/memory_limit = 1024M/' /etc/php/$PHP_VERSION/cli/php.ini
@@ -131,6 +148,7 @@ function installphp() {
   systemctl reload php$PHP_VERSION-fpm || systemctl restart php$PHP_VERSION-fpm
   checkreturncode $? "PHP $PHP_VERSION configuration optimization"
 }
+
 function fpmuseradd() {
   subtitle "Generating system user for FPM process"
   SYSTEM_USER=$(echo "$DOMAIN_NAME" | tr -d '.-' )
@@ -288,6 +306,23 @@ while [[ $# -gt 0 ]]; do
     --whitelist)
       updateallowip
       ;;
+    --challenge)
+      CERTBOT_CHALLENGE="$2"
+      if [[ "$CERTBOT_CHALLENGE" != "http" && "$CERTBOT_CHALLENGE" != "dns" ]]; then
+        echo "Invalid challenge type. Use 'http' or 'dns'."
+        exit 1
+      fi
+      if [[ ! -f /root/cloudflare.ini && "$CERTBOT_CHALLENGE" == "dns" ]]; then
+        echo "Certbot CLoudflare DNS challenge selected. Make sure to configure DNS provider credentials."
+        echo " Permissions : "
+        echo "  - Zone -> DNS -> Edit"
+        echo "  - Zone -> Zone -> Read"
+        read -p "Please enter your API Token : " CF_DNS_API_TOKEN
+        echo "dns_cloudflare_api_token = ${CF_DNS_API_TOKEN}" > /root/cloudflare.ini
+        chmod 600 /root/cloudflare.ini
+      fi
+      shift 2
+      ;;
     *)
       shift
       ;;
@@ -329,7 +364,6 @@ subtitle "Cloning rocket-nginx repository"
 if [[ ! -d /opt/rocket-nginx ]]; then
   git clone https://github.com/satellitewp/rocket-nginx.git /opt/rocket-nginx --depth 1
   cp /opt/rocket-nginx/rocket-nginx.ini.disabled /opt/rocket-nginx/rocket-nginx.ini
-  cd /opt/rocket-nginx && php rocket-parser.php
   checkreturncode $? "rocket-nginx repository cloning"
 fi
 
