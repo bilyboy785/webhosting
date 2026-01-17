@@ -187,6 +187,11 @@ function updateallowip() {
   for ip in $(curl -s https://stripe.com/files/ips/ips_webhooks.txt); do
     echo "allow $ip;" >> /etc/nginx/snippets/whitelist.conf
   done
+  subtitle "Ahref IPs list"
+  echo "# Ahrefs IPs" >> /etc/nginx/snippets/whitelist.conf
+  for ip in $(curl https://api.ahrefs.com/v3/public/crawler-ips | jq -r '.ips[].ip_address'); do
+    echo "allow $ip;" >> /etc/nginx/snippets/whitelist.conf
+  done
   echo "deny all;" >> /etc/nginx/snippets/whitelist.conf
   if nginx -t; then
     systemctl reload nginx.service > /dev/null
