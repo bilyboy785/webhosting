@@ -15,6 +15,7 @@ exclude_patterns:
   - /home/*/.cache
   - '*/.vim*.tmp'
   - /etc/ssl
+  - '/var/www/*/wp-content/backups-dup-pro/'
 exclude_caches: true
 exclude_if_present:
   - .nobackup
