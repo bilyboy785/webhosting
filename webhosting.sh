@@ -681,6 +681,14 @@ crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
 )
 checkreturncode $? "Config update crontab setup"
 
+CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
+if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
+  echo "  --> Certbot renew cron job already exists for user root, skipping creation"
+else
+  (crontab -u "root" -l 2>/dev/null || true; echo "$CERTBOT_RENEW_CRON_CMD") | crontab -u "root" -
+  checkreturncode $? "Certbot renew crontab setup"
+fi
+
 subtitle "Start watchtower docker container for automatic docker image updates"
 docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock docker.io/martinbouillaud/watchtower:latest
 checkreturncode $? "Watchtower docker container setup"
