@@ -406,6 +406,7 @@ apt-get -yq install ca-certificates \
   ufw \
   unzip \
   wget \
+  at \
   sshpass \
   fail2ban \
   python3 \
