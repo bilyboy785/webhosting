@@ -258,7 +258,7 @@ function resume() {
   echo "DB_USER=$WP_DB_USER" >> /etc/environment
   echo "DB_PASS=$WP_DB_PASS" >> /etc/environment
   echo "Expand SSL with :"
-  echo "/root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt -d DOMAIN --preferred-challenges http-01 --expand"
+  echo "/root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt -d $DOMAIN_NAME --preferred-challenges http-01 --expand"
 }
 
 function updateconfig() {
