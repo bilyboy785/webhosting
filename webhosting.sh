@@ -691,7 +691,7 @@ else
 fi
 
 subtitle "Start watchtower docker container for automatic docker image updates"
-docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock docker.io/martinbouillaud/watchtower:latest
+docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock -e TZ=Europe/Paris -e WATCHTOWER_CLEANUP=true -e WATCHTOWER_POLL_INTERVAL=86400 docker.io/martinbouillaud/watchtower:latest
 checkreturncode $? "Watchtower docker container setup"
 
 subtitle "Start docker FTP server"
