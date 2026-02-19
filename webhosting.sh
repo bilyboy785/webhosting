@@ -274,6 +274,9 @@ function updateconfig() {
   cat "$NGINX_FAKE_GOOGLE_BOT_SRC" | sed 's/$/\ 1;/g' > /etc/nginx/bots/fake-googlebots.conf
   subtitle "Updating bad referrers list"
   cat "$NGINX_BAD_REFERRER_LIST_SRC" | sed 's/^/~*/g' | sed 's/$/\ 1;/g' > /etc/nginx/bots/bad-referrers.conf
+  subtitle "Updating error pages"
+  mkdir -p /var/www/errorpages
+  rsync -avz --delete /opt/webhosting/nginx/errorpages/ /var/www/errorpages/
   if nginx -t; then
     systemctl reload nginx
   else
@@ -681,6 +684,10 @@ crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
   (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
 )
 checkreturncode $? "Config update crontab setup"
+
+subtitle "Deploying error pages"
+mkdir -p /var/www/errorpages
+rsync -avz --delete /opt/webhosting/nginx/errorpages/ /var/www/errorpages/
 
 CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
 if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
