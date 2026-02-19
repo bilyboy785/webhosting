@@ -277,6 +277,7 @@ function updateconfig() {
   subtitle "Updating error pages"
   mkdir -p /var/www/errorpages
   rsync -avz --delete /opt/webhosting/nginx/errorpages/ /var/www/errorpages/
+  chown -R www-data:www-data /var/www/errorpages
   if nginx -t; then
     systemctl reload nginx
   else
@@ -688,6 +689,7 @@ checkreturncode $? "Config update crontab setup"
 subtitle "Deploying error pages"
 mkdir -p /var/www/errorpages
 rsync -avz --delete /opt/webhosting/nginx/errorpages/ /var/www/errorpages/
+chown -R www-data:www-data /var/www/errorpages
 
 CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
 if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
