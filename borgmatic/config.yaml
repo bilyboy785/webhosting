@@ -4,6 +4,7 @@ source_directories:
   - /etc/php/
 one_file_system: true
 read_special: true
+repositories: []
 local_path: /root/.local/bin/borg
 exclude_patterns:
   - '*.pyc'
