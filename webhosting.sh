@@ -625,9 +625,9 @@ if [[ ! -f /etc/borgmatic/config.yaml ]]; then
   borgmatic config validate
   checkreturncode $? "Borgmatic configuration validation"
 
-  subtitle "Creating Borgmatic repository"
-  borgmatic repo-create
-  checkreturncode $? "Borgmatic repository creation"
+  # subtitle "Creating Borgmatic repository"
+  # borgmatic repo-create
+  # checkreturncode $? "Borgmatic repository creation"
 
   subtitle "Setting up Borgmatic daily backup cron job"
   CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --log-file /var/log/borgmatic/backup.log"
@@ -639,9 +639,13 @@ if [[ ! -f /etc/borgmatic/config.yaml ]]; then
   fi
 fi
 
-subtitle "Initial backup with Borgmatic"
-borgmatic create --stats
-checkreturncode $? "Initial backup with Borgmatic"
+# subtitle "Initial backup with Borgmatic"
+# borgmatic create --stats
+# checkreturncode $? "Initial backup with Borgmatic"
+
+subtitle "Adding apprise to borgmatic"
+pipx inject borgmatic apprise
+checkreturncode $? "Adding apprise to Borgmatic"
 
 subtitle "Installing bpytop"
 pipx install bpytop
