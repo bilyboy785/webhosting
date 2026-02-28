@@ -2,7 +2,6 @@ source_directories:
   - /var/www/
   - /etc/nginx
   - /etc/php/
-repositories:
 one_file_system: true
 read_special: true
 local_path: /root/.local/bin/borg
