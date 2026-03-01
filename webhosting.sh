@@ -695,6 +695,13 @@ mkdir -p /var/www/errorpages
 rsync -avz --delete /opt/webhosting/nginx/errorpages/ /var/www/errorpages/
 chown -R www-data:www-data /var/www/errorpages
 
+subtitle "Updating motd"
+curl -sL https://github.com/gdubicki/dynamotd/releases/latest/download/dynamotd-linux-amd64 -o /usr/local/bin/dynamotd
+chmod +x /usr/local/bin/dynamotd
+chmod -x /etc/update-motd.d/*
+printf '#!/bin/sh\n/usr/local/bin/dynamotd -force-color\n' > /etc/update-motd.d/99-dynamotd
+chmod +x /etc/update-motd.d/99-dynamotd
+
 CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
 if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
   echo "  --> Certbot renew cron job already exists for user root, skipping creation"
