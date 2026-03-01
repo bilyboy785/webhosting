@@ -457,7 +457,7 @@ fi
 
 subtitle "Initializing pipx environment"
 pipx ensurepath
-echo "\$PATH=\$PATH:/root/.local/bin" >> /etc/environment
+echo "PATH=\$PATH:/root/.local/bin" >> /etc/environment
 echo "DOMAIN_NAME=$DOMAIN_NAME" >> /etc/environment
 checkreturncode $? "Adding domain name to environment vars"
 
