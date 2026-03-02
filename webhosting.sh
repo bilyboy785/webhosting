@@ -4,7 +4,7 @@ set -euo pipefail
 
 clear
 
-export PATH="$PATH:/root/.local/bin"
+export PATH="/root/.local/bin:$PATH"
 
 BORG_ENABLED=false
 CERTBOT_CHALLENGE="http"
@@ -497,7 +497,7 @@ fi
 
 subtitle "Initializing pipx environment"
 pipx ensurepath
-echo "PATH=\$PATH:/root/.local/bin" >> /etc/environment
+# echo "PATH=\$PATH:/root/.local/bin" >> /etc/environment
 echo "DOMAIN_NAME=$DOMAIN_NAME" >> /etc/environment
 checkreturncode $? "Adding domain name to environment vars"
 
@@ -719,7 +719,7 @@ subtitle "Installing WP-CLI"
 if [ ! -f /usr/local/bin/wp ]; then
   curl -s -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
   chmod +x /usr/local/bin/wp
-  wp --info || { echo "❌ L'installation de WP-CLI a échoué"; exit 1; }
+  wp --version --allow-root || { echo "❌ L'installation de WP-CLI a échoué"; exit 1; }
   checkreturncode $? "WP-CLI installation"
 fi
 
@@ -729,9 +729,13 @@ nginxhttpsvhost
 
 subtitle "Generating SSH key"
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
+checkreturncode $? "SSH key generation"
 
+subtitle "Adding export PATH to .zshrc for root user"
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
+checkreturncode $? "Export PATH in .zshrc"
 
+subtitle "Setting up config update daily cron job"
 CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --update"
 crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
   (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
@@ -750,6 +754,7 @@ chmod -x /etc/update-motd.d/*
 printf '#!/bin/sh\n/usr/local/bin/dynamotd -force-color\n' > /etc/update-motd.d/99-dynamotd
 chmod +x /etc/update-motd.d/99-dynamotd
 
+subtitle "Setting up Certbot auto-renewal cron job"
 CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
 if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
   echo "  --> Certbot renew cron job already exists for user root, skipping creation"
@@ -777,8 +782,10 @@ else
   checkreturncode $? "Whitelist cronjob setup"
 fi
 
+subtitle "Setting up Nginx cache directory permissions"
 chown -R ${SYSTEM_USER}:www-data /var/cache/nginx
 chmod -R 2770 /var/cache/nginx
+checkreturncode $? "Nginx cache directory permissions setup"
 
 resume
 
