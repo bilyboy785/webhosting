@@ -322,6 +322,8 @@ function resume() {
   echo "DB_PASS=$WP_DB_PASS" >> /etc/environment
   echo "Expand SSL with :"
   echo "/root/.local/bin/certbot certonly --webroot -w /var/www/letsencrypt -d $DOMAIN_NAME --preferred-challenges http-01 --expand"
+  echo "Deploy ssh key to sotragebox then borgmatic config with :"
+  echo "bash /opt/webhosting/webhosting.sh --borgmatic"
 }
 
 function updateconfig() {
@@ -675,7 +677,6 @@ checkreturncode $? "UFW firewall configuration"
 subtitle "Installing backups tools: BorgBackup + Borgmatic"
 pipx install borgbackup
 pipx install borgmatic
-borgmaticconfig
 
 subtitle "Installing bpytop"
 pipx install bpytop
