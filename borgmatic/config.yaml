@@ -1,7 +1,7 @@
 source_directories:
-  - /var/www/
-  - /etc/nginx
-  - /etc/php/
+  - /var/www
+  - /etc
+  - /opt
 one_file_system: true
 read_special: true
 repositories: []
@@ -12,6 +12,10 @@ exclude_patterns:
   - '*/.vim*.tmp'
   - /etc/ssl
   - '/var/www/*/wp-content/backups-dup-pro/'
+  - '/var/www/*/wp-content/uploads/ShortpixelBackups'
+  - '/var/www/*/wp-content/smush-webp'
+  - '/var/www/*/wp-content/cache'
+  - '/var/www/*/wp-content/et-cache'
 exclude_caches: true
 exclude_if_present:
   - .nobackup

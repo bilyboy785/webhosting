@@ -218,37 +218,53 @@ function nginxhttpvhost() {
 }
 
 function borgmaticconfig() {
-  if [[ ! -f /etc/borgmatic/config.yaml ]]; then
-    subtitle "Generating Borgmatic configuration file"
-    BORGMATIC_CONFIG_SRC="/opt/webhosting/borgmatic/config.yaml"
-    export INSTANCE_HOSTNAME=$(hostname -f)
-    envsubst '$INSTANCE_HOSTNAME' < "$BORGMATIC_CONFIG_SRC" > /etc/borgmatic/config.yaml
-    checkreturncode $? "Borgmatic configuration file generation"
-    if grep -q 'BORG_PASSPHRASE' /etc/environment; then
-      PASSPHRASE=$(grep 'BORG_PASSPHRASE' /etc/environment | cut -d '=' -f2)
-      yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
-      checkreturncode $? "Setting up borg passphrase for borgmatic config"
-    else
-      PASSPHRASE=$(pwgen -cn -1 64) && yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
-      echo "BORG_PASSPHRASE=$PASSPHRASE" >> /etc/environment
-      checkreturncode $? "Adding passphrase to environment vars"
-    fi
-    borgmatic config validate
-    checkreturncode $? "Borgmatic configuration validation"
+  mkdir -p /etc/borgmatic
+  mkdir -p /var/backups/borg
+  mkdir -p /var/log/borgmatic
 
-    subtitle "Setting up Borgmatic daily backup cron job"
-    CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --log-file /var/log/borgmatic/backup.log"
-    if grep -q 'borgmatic' /var/spool/cron/crontabs/root 2>/dev/null; then
-      echo "  --> Borgmatic cron job already exists for user root, skipping creation"
-    else
-      (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
-      checkreturncode $? "Borgmatic crontab setup"
-    fi
+  if [[ -f /etc/borgmatic/config.yaml ]]; then
+    rm -f /etc/borgmatic/config.yaml
   fi
 
   subtitle "Adding apprise to borgmatic"
   pipx inject borgmatic apprise
   checkreturncode $? "Adding apprise to Borgmatic"
+
+  subtitle "Generating Borgmatic configuration file"
+  BORGMATIC_CONFIG_SRC="/opt/webhosting/borgmatic/config.yaml"
+  export INSTANCE_HOSTNAME=$(hostname -f)
+  envsubst '$INSTANCE_HOSTNAME' < "$BORGMATIC_CONFIG_SRC" > /etc/borgmatic/config.yaml
+  checkreturncode $? "Borgmatic configuration file generation"
+
+  BORG_PASSPHRASE=$(pwgen -cn -1 64) 
+  yq -iy ".encryption_passphrase = \"$BORG_PASSPHRASE\"" /etc/borgmatic/config.yaml
+  echo "export BORG_PASSPHRASE=$BORG_PASSPHRASE" >> ~/.zshrc
+  checkreturncode $? "Adding passphrase to environment vars"
+
+  read -p "Specify borg repo : " BORG_REPO
+  export BORG_REPO=$BORG_REPO
+  export BORG_PASSCOMMAND=$BORG_PASSPHRASE
+
+  yq -iy ".repositories[0].path = \"${BORG_REPO}\"" /etc/borgmatic/config.yaml
+  yq -iy ".repositories[0].storage_quota = \"50G\"" /etc/borgmatic/config.yaml
+  yq -iy ".repositories[0].encryption = \"repokey\"" /etc/borgmatic/config.yaml
+  yq -iy ".repositories[0].label = \"storagebox\"" /etc/borgmatic/config.yaml
+
+  borgmatic config validate
+  checkreturncode $? "Borgmatic configuration validation"
+
+  subtitle "Creating Borgmatic repository"
+  borgmatic repo-create
+  checkreturncode $? "Borgmatic repository creation"
+
+  subtitle "Setting up Borgmatic daily backup cron job"
+  CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --log-file /var/log/borgmatic/backup.log"
+  if grep -q 'borgmatic' /var/spool/cron/crontabs/root 2>/dev/null; then
+    echo "  --> Borgmatic cron job already exists for user root, skipping creation"
+  else
+    (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
+    checkreturncode $? "Borgmatic crontab setup"
+  fi
 }
 
 function nginxhttpsvhost() {
@@ -352,6 +368,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --borgmatic)
       borgmaticconfig
+      exit 0
       shift 2
       ;;
     --update)
@@ -646,54 +663,7 @@ checkreturncode $? "UFW firewall configuration"
 subtitle "Installing backups tools: BorgBackup + Borgmatic"
 pipx install borgbackup
 pipx install borgmatic
-
-mkdir -p /etc/borgmatic
-mkdir -p /var/backups/borg
-mkdir -p /var/log/borgmatic
-
-if [[ "$BORG_ENABLED" == true ]]; then
-  if [[ ! -f /etc/borgmatic/config.yaml ]]; then
-    subtitle "Generating Borgmatic configuration file"
-    BORGMATIC_CONFIG_SRC="/opt/webhosting/borgmatic/config.yaml"
-    export INSTANCE_HOSTNAME=$(hostname -f)
-    envsubst '$INSTANCE_HOSTNAME' < "$BORGMATIC_CONFIG_SRC" > /etc/borgmatic/config.yaml
-    checkreturncode $? "Borgmatic configuration file generation"
-    if grep -q 'BORG_PASSPHRASE' /etc/environment; then
-      PASSPHRASE=$(grep 'BORG_PASSPHRASE' /etc/environment | cut -d '=' -f2)
-      yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
-      checkreturncode $? "Setting up borg passphrase for borgmatic config"
-    else
-      PASSPHRASE=$(pwgen -cn -1 64) && yq -iy ".encryption_passphrase = \"$PASSPHRASE\"" /etc/borgmatic/config.yaml
-      echo "BORG_PASSPHRASE=$PASSPHRASE" >> /etc/environment
-      checkreturncode $? "Adding passphrase to environment vars"
-    fi
-    borgmatic config validate
-    checkreturncode $? "Borgmatic configuration validation"
-
-    # subtitle "Creating Borgmatic repository"
-    # borgmatic repo-create
-    # checkreturncode $? "Borgmatic repository creation"
-
-    subtitle "Setting up Borgmatic daily backup cron job"
-    CRON_CMD="0 2 * * * /root/.local/bin/borgmatic --log-file /var/log/borgmatic/backup.log"
-    if grep -q 'borgmatic' /var/spool/cron/crontabs/root 2>/dev/null; then
-      echo "  --> Borgmatic cron job already exists for user root, skipping creation"
-    else
-      (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
-      checkreturncode $? "Borgmatic crontab setup"
-    fi
-  fi
-
-  subtitle "Adding apprise to borgmatic"
-  pipx inject borgmatic apprise
-  checkreturncode $? "Adding apprise to Borgmatic"
-
-  # subtitle "Initial backup with Borgmatic"
-  # borgmatic create --stats
-  # checkreturncode $? "Initial backup with Borgmatic"
-
-fi
-
+borgmaticconfig
 
 subtitle "Installing bpytop"
 pipx install bpytop
