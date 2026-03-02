@@ -65,7 +65,7 @@ function generateletsencryptcert() {
 }
 
 function nginxcheck() {
-  if nginx -t; then
+  if nginx -t > /dev/null 2>&1; then
     systemctl restart nginx > /dev/null
   else
     echo "❌ Nginx syntax error, please check the configuration!"
@@ -728,8 +728,10 @@ generateletsencryptcert
 nginxhttpsvhost
 
 subtitle "Generating SSH key"
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
-checkreturncode $? "SSH key generation"
+if [[ ! -f ~/.ssh/id_rsa ]]; then
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
+  checkreturncode $? "SSH key generation"
+fi
 
 subtitle "Adding export PATH to .zshrc for root user"
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
