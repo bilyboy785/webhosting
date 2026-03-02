@@ -246,8 +246,12 @@ function borgmaticconfig() {
   echo "export BORG_PASSPHRASE=$BORG_PASSPHRASE" >> ~/.zshrc
   echo "export BORG_REPO=$BORG_REPO" >> ~/.zshrc
 
+  STORAGE_QUOTA="50G"
+  read -p "Specify storage quota for Borg repository (default: $STORAGE_QUOTA) : " USER_STORAGE_QUOTA
+  STORAGE_QUOTA=${USER_STORAGE_QUOTA:-$STORAGE_QUOTA}
+
   yq -iy ".repositories[0].path = \"${BORG_REPO}\"" /etc/borgmatic/config.yaml
-  yq -iy ".repositories[0].storage_quota = \"50G\"" /etc/borgmatic/config.yaml
+  yq -iy ".repositories[0].storage_quota = \"${STORAGE_QUOTA}\"" /etc/borgmatic/config.yaml
   yq -iy ".repositories[0].encryption = \"repokey\"" /etc/borgmatic/config.yaml
   yq -iy ".repositories[0].label = \"storagebox\"" /etc/borgmatic/config.yaml
 
