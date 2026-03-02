@@ -251,6 +251,13 @@ function borgmaticconfig() {
   yq -iy ".repositories[0].encryption = \"repokey\"" /etc/borgmatic/config.yaml
   yq -iy ".repositories[0].label = \"storagebox\"" /etc/borgmatic/config.yaml
 
+  read -p "Specify the apprise chanel for notifications (leave empty to skip) : " APPRISE_CHANNEL
+  if [[ -n "$APPRISE_CHANNEL" ]]; then
+    yq -iy '.apprise.states = ["fail"]' /etc/borgmatic/config.yaml
+    yq -iy ".apprise.services = [{\"url\":\"${APPRISE_CHANNEL}\",\"label\":\"telegram\"}]" /etc/borgmatic/config.yaml
+    checkreturncode $? "Adding Apprise notification to Borgmatic configuration"
+  fi
+
   borgmatic config validate
   checkreturncode $? "Borgmatic configuration validation"
 
