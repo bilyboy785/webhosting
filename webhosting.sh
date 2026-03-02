@@ -238,12 +238,13 @@ function borgmaticconfig() {
 
   BORG_PASSPHRASE=$(pwgen -cn -1 64) 
   yq -iy ".encryption_passphrase = \"$BORG_PASSPHRASE\"" /etc/borgmatic/config.yaml
-  echo "export BORG_PASSPHRASE=$BORG_PASSPHRASE" >> ~/.zshrc
   checkreturncode $? "Adding passphrase to environment vars"
 
   read -p "Specify borg repo : " BORG_REPO
   export BORG_REPO=$BORG_REPO
   export BORG_PASSCOMMAND=$BORG_PASSPHRASE
+  echo "export BORG_PASSPHRASE=$BORG_PASSPHRASE" >> ~/.zshrc
+  echo "export BORG_REPO=$BORG_REPO" >> ~/.zshrc
 
   yq -iy ".repositories[0].path = \"${BORG_REPO}\"" /etc/borgmatic/config.yaml
   yq -iy ".repositories[0].storage_quota = \"50G\"" /etc/borgmatic/config.yaml
