@@ -740,7 +740,7 @@ checkreturncode $? "Export PATH in .zshrc"
 subtitle "Setting up config update daily cron job"
 CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --update"
 crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
-  (crontab -u "root" -l 2>/dev/null; echo "$CRON_CMD") | crontab -u "root" -
+  (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
 )
 checkreturncode $? "Config update crontab setup"
 
