@@ -456,6 +456,12 @@ fpmuseradd
 
 createwpcron
 
+subtitle "Generating SSH key"
+if [[ ! -f ~/.ssh/id_rsa ]]; then
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
+  checkreturncode $? "SSH key generation"
+fi
+
 subtitle "Initialize directories"
 mkdir -p /var/log/php
 mkdir -p /etc/nginx/snippets
@@ -528,8 +534,7 @@ fi
 
 subtitle "Initializing pipx environment"
 pipx ensurepath
-# echo "PATH=\$PATH:/root/.local/bin" >> /etc/environment
-echo "DOMAIN_NAME=$DOMAIN_NAME" >> /etc/environment
+echo "export DOMAIN_NAME=$DOMAIN_NAME" >> ~/.zshrc
 checkreturncode $? "Adding domain name to environment vars"
 
 pipx install pwgen
@@ -709,12 +714,6 @@ fi
 generateletsencryptcert
 
 nginxhttpsvhost
-
-subtitle "Generating SSH key"
-if [[ ! -f ~/.ssh/id_rsa ]]; then
-  ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -q -N ""
-  checkreturncode $? "SSH key generation"
-fi
 
 subtitle "Adding export PATH to .zshrc for root user"
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
