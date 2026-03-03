@@ -259,6 +259,9 @@ function borgmaticconfig() {
   if [[ -n "$APPRISE_CHANNEL" ]]; then
     yq -iy '.apprise.states = ["fail"]' /etc/borgmatic/config.yaml
     yq -iy ".apprise.services = [{\"url\":\"${APPRISE_CHANNEL}\",\"label\":\"telegram\"}]" /etc/borgmatic/config.yaml
+    yq -iy ".apprise.fail.body = \"Backup failed\"" /etc/borgmatic/config.yaml
+    yq -iy ".apprise.fail.title = \"$(hostname -f)\"" /etc/borgmatic/config.yaml
+    yq -iy ".apprise.send_logs = true" /etc/borgmatic/config.yaml
     checkreturncode $? "Adding Apprise notification to Borgmatic configuration"
   fi
 
