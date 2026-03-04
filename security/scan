@@ -6,22 +6,30 @@
 #
 # Options:
 #   -s <levels>   Severity filter, comma-separated (default: HIGH,MEDIUM,LOW)
-#                 Examples: -s HIGH
-#                           -s HIGH,MEDIUM
+#                 Examples: -s HIGH  or  -s HIGH,MEDIUM
+#   -r <dest>     SCP destination to push JSON report
+#                 Example: -r user@host:/var/reports/
+#   -o <path>     Output directory for JSON file (default: /tmp)
 #   -h            Show this help
+#
+# Output file: <outdir>/security.<hostname>
 # ============================================================
 
 SEVERITY_FILTER="HIGH,MEDIUM,LOW"
+SCP_DEST=""
+OUT_DIR="/tmp"
 TARGET=""
 
 usage() {
-    sed -n '4,12p' "$0" | sed 's/^# \?//'
+    sed -n '4,15p' "$0" | sed 's/^# \?//'
     exit 0
 }
 
-while getopts ":s:h" opt; do
+while getopts ":s:r:o:h" opt; do
     case $opt in
         s) SEVERITY_FILTER="${OPTARG^^}" ;;
+        r) SCP_DEST="$OPTARG" ;;
+        o) OUT_DIR="$OPTARG" ;;
         h) usage ;;
         \?) echo "Unknown option: -$OPTARG"; usage ;;
     esac
@@ -29,8 +37,26 @@ done
 shift $((OPTIND - 1))
 
 TARGET="${1:-/var/www}"
-REPORT_FILE="/tmp/security_scan_$(date +%Y%m%d_%H%M%S).log"
-ISSUES=0
+JSON_FILE="${OUT_DIR}/security.$(hostname -s)"
+
+# jq is required for JSON generation
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is required but not installed." >&2
+    exit 1
+fi
+
+if [ ! -d "$TARGET" ]; then
+    echo "Error: directory '$TARGET' not found." >&2
+    exit 1
+fi
+
+# Accumulators
+ISSUES_JSON="[]"
+COUNT_HIGH=0
+COUNT_MEDIUM=0
+COUNT_LOW=0
+
+# ---- helpers ------------------------------------------------
 
 severity_enabled() {
     [[ ",$SEVERITY_FILTER," == *",$1,"* ]]
@@ -47,48 +73,62 @@ log_issue() {
     local category="$2"
     local message="$3"
     local file="$4"
+
     severity_enabled "$severity" || return 0
-    ISSUES=$((ISSUES + 1))
+
+    # Append to JSON array
+    ISSUES_JSON=$(jq \
+        --arg sev "$severity" \
+        --arg cat "$category" \
+        --arg msg "$message" \
+        --arg f   "$file" \
+        '. += [{"severity":$sev,"category":$cat,"message":$msg,"file":$f}]' \
+        <<< "$ISSUES_JSON")
+
     case "$severity" in
-        HIGH)   echo -e "${RED}[HIGH]${NC}    [$category] $message" | tee -a "$REPORT_FILE" ;;
-        MEDIUM) echo -e "${YELLOW}[MEDIUM]${NC}  [$category] $message" | tee -a "$REPORT_FILE" ;;
-        LOW)    echo -e "${CYAN}[LOW]${NC}     [$category] $message" | tee -a "$REPORT_FILE" ;;
+        HIGH)
+            COUNT_HIGH=$((COUNT_HIGH + 1))
+            echo -e "${RED}[HIGH]${NC}    [$category] $message"
+            ;;
+        MEDIUM)
+            COUNT_MEDIUM=$((COUNT_MEDIUM + 1))
+            echo -e "${YELLOW}[MEDIUM]${NC}  [$category] $message"
+            ;;
+        LOW)
+            COUNT_LOW=$((COUNT_LOW + 1))
+            echo -e "${CYAN}[LOW]${NC}     [$category] $message"
+            ;;
     esac
-    [ -n "$file" ] && echo "           -> $file" | tee -a "$REPORT_FILE"
+    [ -n "$file" ] && echo "           -> $file"
 }
 
 section() {
-    echo "" | tee -a "$REPORT_FILE"
-    echo -e "${GREEN}=== $1 ===${NC}" | tee -a "$REPORT_FILE"
+    echo ""
+    echo -e "${GREEN}=== $1 ===${NC}"
 }
 
-echo "============================================================" | tee "$REPORT_FILE"
-echo " Security Scan: $TARGET" | tee -a "$REPORT_FILE"
-echo " Date: $(date)" | tee -a "$REPORT_FILE"
-echo " Severity filter: $SEVERITY_FILTER" | tee -a "$REPORT_FILE"
-echo "============================================================" | tee -a "$REPORT_FILE"
+# ---- header -------------------------------------------------
 
-if [ ! -d "$TARGET" ]; then
-    echo "Error: directory '$TARGET' not found."
-    exit 1
-fi
+echo "============================================================"
+echo " Security Scan: $TARGET"
+echo " Host:          $(hostname)"
+echo " Date:          $(date)"
+echo " Severity:      $SEVERITY_FILTER"
+echo "============================================================"
 
 # ------------------------------------------------------------
-# 1. SENSITIVE FILE TYPES (backups, dumps, archives)
+# 1. SENSITIVE FILE TYPES
 # ------------------------------------------------------------
 section "Sensitive file types"
 
-# SQL dumps
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "SQL_DUMP" "SQL file exposed publicly" "$f"
 done < <(find "$TARGET" -type f \( -name "*.sql" -o -name "*.sql.gz" -o -name "*.dump" \) -print0 2>/dev/null)
 
-# Archives
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "ARCHIVE" "Archive file publicly accessible" "$f"
 done < <(find "$TARGET" -type f \( -name "*.zip" -o -name "*.tar" -o -name "*.tgz" -o -name "*.tar.gz" -o -name "*.tar.bz2" -o -name "*.rar" -o -name "*.7z" \) -print0 2>/dev/null)
 
-# Backup files
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "BACKUP" "Backup file exposed" "$f"
 done < <(find "$TARGET" -type f \( -name "*.bak" -o -name "*.bkp" -o -name "*.backup" -o -name "*.old" -o -name "*.orig" -o -name "*.save" \) -print0 2>/dev/null)
@@ -98,22 +138,18 @@ done < <(find "$TARGET" -type f \( -name "*.bak" -o -name "*.bkp" -o -name "*.ba
 # ------------------------------------------------------------
 section "Configuration & credential files"
 
-# .env files
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "ENV_FILE" ".env file with potential credentials" "$f"
 done < <(find "$TARGET" -type f -name ".env*" -print0 2>/dev/null)
 
-# Config files with passwords
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "CONFIG" "Configuration file potentially sensitive" "$f"
 done < <(find "$TARGET" -type f \( -name "config.php" -o -name "wp-config.php" -o -name "database.yml" -o -name "database.php" -o -name "settings.py" -o -name "config.yml" -o -name "secrets.yml" \) -print0 2>/dev/null)
 
-# Private keys & certificates
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "PRIVATE_KEY" "Private key or certificate exposed" "$f"
 done < <(find "$TARGET" -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.pfx" -o -name "*.crt" -o -name "id_rsa" -o -name "id_dsa" -o -name "*.ppk" \) -print0 2>/dev/null)
 
-# htpasswd
 while IFS= read -r -d '' f; do
     log_issue "MEDIUM" "AUTH" "htpasswd file inside webroot" "$f"
 done < <(find "$TARGET" -type f \( -name ".htpasswd" -o -name "htpasswd" \) -print0 2>/dev/null)
@@ -123,22 +159,18 @@ done < <(find "$TARGET" -type f \( -name ".htpasswd" -o -name "htpasswd" \) -pri
 # ------------------------------------------------------------
 section "VCS and IDE artifacts"
 
-# .git directories
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "GIT_REPO" ".git directory exposed — source code & history accessible" "$f"
 done < <(find "$TARGET" -type d -name ".git" -print0 2>/dev/null)
 
-# .svn directories
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "SVN_REPO" ".svn directory exposed" "$f"
 done < <(find "$TARGET" -type d -name ".svn" -print0 2>/dev/null)
 
-# IDE/editor files
 while IFS= read -r -d '' f; do
     log_issue "LOW" "IDE" "IDE/editor metadata file exposed" "$f"
 done < <(find "$TARGET" -type f \( -name "*.swp" -o -name "*.swo" -o -name "*~" -o -name ".idea" \) -print0 2>/dev/null)
 
-# composer.json / package.json (dependency enumeration)
 while IFS= read -r -d '' f; do
     log_issue "LOW" "DEPS" "Dependency manifest exposed (version enumeration possible)" "$f"
 done < <(find "$TARGET" -type f \( -name "composer.json" -o -name "composer.lock" -o -name "package.json" -o -name "package-lock.json" \) -print0 2>/dev/null)
@@ -152,11 +184,10 @@ while IFS= read -r -d '' f; do
     log_issue "MEDIUM" "LOG_FILE" "Log file accessible in webroot" "$f"
 done < <(find "$TARGET" -type f \( -name "*.log" -o -name "error_log" -o -name "access_log" \) -print0 2>/dev/null)
 
-# phpinfo
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "PHPINFO" "phpinfo() file exposes server configuration" "$f"
 done < <(find "$TARGET" -type f -name "phpinfo.php" -print0 2>/dev/null)
-# Also grep for phpinfo() in PHP files
+
 while IFS= read -r f; do
     log_issue "MEDIUM" "PHPINFO" "phpinfo() call found in file" "$f"
 done < <(grep -rl "phpinfo()" "$TARGET" --include="*.php" 2>/dev/null)
@@ -166,7 +197,6 @@ done < <(grep -rl "phpinfo()" "$TARGET" --include="*.php" 2>/dev/null)
 # ------------------------------------------------------------
 section "Dangerous scripts and webshells"
 
-# Common webshell filenames
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "WEBSHELL" "Suspicious filename matching known webshell patterns" "$f"
 done < <(find "$TARGET" -type f \( \
@@ -175,12 +205,10 @@ done < <(find "$TARGET" -type f \( \
     -o -iname "upload.php" -o -iname "uploader.php" \
     \) -print0 2>/dev/null)
 
-# eval(base64_decode — classic obfuscation
 while IFS= read -r f; do
     log_issue "HIGH" "OBFUSCATION" "eval(base64_decode pattern detected (potential webshell/malware)" "$f"
 done < <(grep -rl "eval(base64_decode" "$TARGET" --include="*.php" 2>/dev/null)
 
-# system()/exec()/passthru() in PHP
 while IFS= read -r f; do
     log_issue "MEDIUM" "CODE_EXEC" "PHP command execution function detected (system/exec/passthru/shell_exec)" "$f"
 done < <(grep -rlE "(system|exec|passthru|shell_exec|popen)\s*\(" "$TARGET" --include="*.php" 2>/dev/null)
@@ -190,17 +218,14 @@ done < <(grep -rlE "(system|exec|passthru|shell_exec|popen)\s*\(" "$TARGET" --in
 # ------------------------------------------------------------
 section "File permissions"
 
-# World-writable files
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "PERMISSIONS" "World-writable file" "$f"
 done < <(find "$TARGET" -type f -perm -o+w -print0 2>/dev/null)
 
-# World-writable directories
 while IFS= read -r -d '' f; do
     log_issue "MEDIUM" "PERMISSIONS" "World-writable directory" "$f"
 done < <(find "$TARGET" -type d -perm -o+w -print0 2>/dev/null)
 
-# Executable PHP files with suspicious permissions (setuid/setgid)
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "PERMISSIONS" "Setuid/setgid bit on PHP file" "$f"
 done < <(find "$TARGET" -type f -name "*.php" \( -perm -4000 -o -perm -2000 \) -print0 2>/dev/null)
@@ -215,10 +240,53 @@ while IFS= read -r -d '' f; do
 done < <(find "$TARGET" -type f -mtime -7 -print0 2>/dev/null)
 
 # ------------------------------------------------------------
+# GENERATE JSON REPORT
+# ------------------------------------------------------------
+TOTAL=$((COUNT_HIGH + COUNT_MEDIUM + COUNT_LOW))
+
+jq -n \
+    --arg  hostname        "$(hostname)" \
+    --arg  date            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg  target          "$TARGET" \
+    --arg  severity_filter "$SEVERITY_FILTER" \
+    --argjson high         "$COUNT_HIGH" \
+    --argjson medium       "$COUNT_MEDIUM" \
+    --argjson low          "$COUNT_LOW" \
+    --argjson total        "$TOTAL" \
+    --argjson issues       "$ISSUES_JSON" \
+    '{
+        hostname:        $hostname,
+        date:            $date,
+        target:          $target,
+        severity_filter: $severity_filter,
+        summary: {
+            total:  $total,
+            high:   $high,
+            medium: $medium,
+            low:    $low
+        },
+        issues: $issues
+    }' > "$JSON_FILE"
+
+# ------------------------------------------------------------
 # SUMMARY
 # ------------------------------------------------------------
-echo "" | tee -a "$REPORT_FILE"
-echo "============================================================" | tee -a "$REPORT_FILE"
-echo " TOTAL ISSUES FOUND: $ISSUES" | tee -a "$REPORT_FILE"
-echo " Full report saved to: $REPORT_FILE" | tee -a "$REPORT_FILE"
-echo "============================================================" | tee -a "$REPORT_FILE"
+echo ""
+echo "============================================================"
+echo " TOTAL ISSUES: $TOTAL  (HIGH: $COUNT_HIGH  MEDIUM: $COUNT_MEDIUM  LOW: $COUNT_LOW)"
+echo " JSON report:  $JSON_FILE"
+echo "============================================================"
+
+# ------------------------------------------------------------
+# SCP (optional)
+# ------------------------------------------------------------
+if [ -n "$SCP_DEST" ]; then
+    echo ""
+    echo "Pushing report to $SCP_DEST ..."
+    if scp "$JSON_FILE" "$SCP_DEST"; then
+        echo "Done."
+    else
+        echo "Error: scp failed (exit $?)." >&2
+        exit 2
+    fi
+fi
