@@ -40,7 +40,7 @@ done
 shift $((OPTIND - 1))
 
 TARGET="${1:-/var/www}"
-JSON_FILE="${OUT_DIR}/security.$(hostname -f).json"
+JSON_FILE="${OUT_DIR}/$(hostname -f).json"
 
 # jq is required for JSON generation
 if ! command -v jq &>/dev/null; then
