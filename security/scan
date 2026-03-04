@@ -9,6 +9,7 @@
 #                 Examples: -s HIGH  or  -s HIGH,MEDIUM
 #   -r <dest>     SCP destination to push JSON report
 #                 Example: -r user@host:/var/reports/
+#   -p <port>     SSH port for SCP (default: 22)
 #   -o <path>     Output directory for JSON file (default: /tmp)
 #   -h            Show this help
 #
@@ -17,18 +18,20 @@
 
 SEVERITY_FILTER="HIGH,MEDIUM,LOW"
 SCP_DEST=""
+SCP_PORT="22"
 OUT_DIR="/tmp"
 TARGET=""
 
 usage() {
-    sed -n '4,15p' "$0" | sed 's/^# \?//'
+    sed -n '4,16p' "$0" | sed 's/^# \?//'
     exit 0
 }
 
-while getopts ":s:r:o:h" opt; do
+while getopts ":s:r:p:o:h" opt; do
     case $opt in
         s) SEVERITY_FILTER="${OPTARG^^}" ;;
         r) SCP_DEST="$OPTARG" ;;
+        p) SCP_PORT="$OPTARG" ;;
         o) OUT_DIR="$OPTARG" ;;
         h) usage ;;
         \?) echo "Unknown option: -$OPTARG"; usage ;;
@@ -37,7 +40,7 @@ done
 shift $((OPTIND - 1))
 
 TARGET="${1:-/var/www}"
-JSON_FILE="${OUT_DIR}/security.$(hostname -s)"
+JSON_FILE="${OUT_DIR}/security.$(hostname -s).json"
 
 # jq is required for JSON generation
 if ! command -v jq &>/dev/null; then
@@ -283,7 +286,7 @@ echo "============================================================"
 if [ -n "$SCP_DEST" ]; then
     echo ""
     echo "Pushing report to $SCP_DEST ..."
-    if scp "$JSON_FILE" "$SCP_DEST"; then
+    if scp -P "$SCP_PORT" "$JSON_FILE" "$SCP_DEST"; then
         echo "Done."
     else
         echo "Error: scp failed (exit $?)." >&2
