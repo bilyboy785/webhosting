@@ -722,12 +722,12 @@ subtitle "Adding export PATH to .zshrc for root user"
 sed -i 's/# export PATH/export PATH/g' /root/.zshrc
 checkreturncode $? "Export PATH in .zshrc"
 
-subtitle "Setting up config update daily cron job"
-CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --update"
-crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
-  (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
-)
-checkreturncode $? "Config update crontab setup"
+# subtitle "Setting up config update daily cron job"
+# CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --update"
+# crontab -u "root" -l 2>/dev/null | grep -F -- "$CRON_CMD" >/dev/null 2>&1 || (
+#   (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
+# )
+# checkreturncode $? "Config update crontab setup"
 
 subtitle "Deploying error pages"
 mkdir -p /var/www/errorpages
@@ -741,14 +741,14 @@ chmod -x /etc/update-motd.d/*
 printf '#!/bin/sh\n/usr/local/bin/dynamotd -force-color\n' > /etc/update-motd.d/99-dynamotd
 chmod +x /etc/update-motd.d/99-dynamotd
 
-subtitle "Setting up Certbot auto-renewal cron job"
-CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
-if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
-  echo "  --> Certbot renew cron job already exists for user root, skipping creation"
-else
-  (crontab -u "root" -l 2>/dev/null || true; echo "$CERTBOT_RENEW_CRON_CMD") | crontab -u "root" -
-  checkreturncode $? "Certbot renew crontab setup"
-fi
+# subtitle "Setting up Certbot auto-renewal cron job"
+# CERTBOT_RENEW_CRON_CMD="0 */12 * * * certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
+# if grep -q 'certbot renew' /var/spool/cron/crontabs/root 2>/dev/null; then
+#   echo "  --> Certbot renew cron job already exists for user root, skipping creation"
+# else
+#   (crontab -u "root" -l 2>/dev/null || true; echo "$CERTBOT_RENEW_CRON_CMD") | crontab -u "root" -
+#   checkreturncode $? "Certbot renew crontab setup"
+# fi
 
 subtitle "Start watchtower docker container for automatic docker image updates"
 docker run -d --restart always --name watchtower -v /var/run/docker.sock:/var/run/docker.sock -e TZ=Europe/Paris -e WATCHTOWER_CLEANUP=true -e WATCHTOWER_POLL_INTERVAL=86400 docker.io/martinbouillaud/watchtower:latest
@@ -760,14 +760,14 @@ USER_PUID=$(id -u ${SYSTEM_USER})
 docker run -d --restart always --name ftp -p 21:21 -p 21000-21010:21000-21010 -e USERS="${SYSTEM_USER}|${FTP_PASS}|/var/www/${DOMAIN_NAME}|${USER_PUID}" -e ADDDRESS="${DOMAIN_NAME}" -v /var/www/${DOMAIN_NAME}:/var/www/${DOMAIN_NAME} delfer/alpine-ftp-server
 checkreturncode $? "FTP server docker container setup"
 
-subtitle "Setting up Whitelist daily update cron job"
-CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --whitelist"
-if grep -q 'whitelist' /var/spool/cron/crontabs/root 2>/dev/null; then
-  echo "  --> Whitelist cron job already exists for user root, skipping creation"
-else
-  (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
-  checkreturncode $? "Whitelist cronjob setup"
-fi
+# subtitle "Setting up Whitelist daily update cron job"
+# CRON_CMD="0 4 * * * /bin/bash /opt/webhosting/webhosting.sh --whitelist"
+# if grep -q 'whitelist' /var/spool/cron/crontabs/root 2>/dev/null; then
+#   echo "  --> Whitelist cron job already exists for user root, skipping creation"
+# else
+#   (crontab -u "root" -l 2>/dev/null || true; echo "$CRON_CMD") | crontab -u "root" -
+#   checkreturncode $? "Whitelist cronjob setup"
+# fi
 
 subtitle "Setting up Nginx cache directory permissions"
 chown -R ${SYSTEM_USER}:www-data /var/cache/nginx

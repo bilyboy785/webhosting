@@ -10,6 +10,7 @@
 #   -r <dest>     SCP destination to push JSON report
 #                 Example: -r user@host:/var/reports/
 #   -p <port>     SSH port for SCP (default: 22)
+#   -i <key>      SSH identity file for SCP
 #   -o <path>     Output directory for JSON file (default: /tmp)
 #   -h            Show this help
 #
@@ -19,6 +20,7 @@
 SEVERITY_FILTER="HIGH,MEDIUM,LOW"
 SCP_DEST=""
 SCP_PORT="22"
+SCP_KEY=""
 OUT_DIR="/tmp"
 TARGET=""
 
@@ -27,11 +29,12 @@ usage() {
     exit 0
 }
 
-while getopts ":s:r:p:o:h" opt; do
+while getopts ":s:r:p:i:o:h" opt; do
     case $opt in
         s) SEVERITY_FILTER="${OPTARG^^}" ;;
         r) SCP_DEST="$OPTARG" ;;
         p) SCP_PORT="$OPTARG" ;;
+        i) SCP_KEY="$OPTARG" ;;
         o) OUT_DIR="$OPTARG" ;;
         h) usage ;;
         \?) echo "Unknown option: -$OPTARG"; usage ;;
@@ -195,7 +198,9 @@ echo "============================================================"
 if [ -n "$SCP_DEST" ]; then
     echo ""
     echo "Pushing report to $SCP_DEST ..."
-    if scp -P "$SCP_PORT" -o StrictHostKeyChecking=no "$JSON_FILE" "$SCP_DEST"; then
+    SCP_OPTS=(-P "$SCP_PORT" -o StrictHostKeyChecking=no)
+    [ -n "$SCP_KEY" ] && SCP_OPTS+=(-i "$SCP_KEY")
+    if scp "${SCP_OPTS[@]}" "$JSON_FILE" "$SCP_DEST"; then
         echo "Done."
     else
         echo "Error: scp failed (exit $?)." >&2
