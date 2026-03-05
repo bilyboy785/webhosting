@@ -119,6 +119,9 @@ echo " Date:          $(date)"
 echo " Severity:      $SEVERITY_FILTER"
 echo "============================================================"
 
+# Directories to exclude from all scans
+EXCLUDE_PRUNE=\( -path "*/wp-content/backups-dup-pro" -prune \) -o
+
 # ------------------------------------------------------------
 # 1. SQL DUMPS
 # ------------------------------------------------------------
@@ -126,7 +129,7 @@ section "SQL dumps"
 
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "SQL_DUMP" "SQL file exposed publicly" "$f"
-done < <(find "$TARGET" -type f \( -name "*.sql" -o -name "*.sql.gz" \) -print0 2>/dev/null)
+done < <(find "$TARGET" $EXCLUDE_PRUNE -type f \( -name "*.sql" -o -name "*.sql.gz" \) -print0 2>/dev/null)
 
 # ------------------------------------------------------------
 # 2. BACKUP FILES
@@ -135,7 +138,7 @@ section "Backup files"
 
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "BACKUP" "Backup file exposed" "$f"
-done < <(find "$TARGET" -type f -name "*.bak" -print0 2>/dev/null)
+done < <(find "$TARGET" $EXCLUDE_PRUNE -type f -name "*.bak" -print0 2>/dev/null)
 
 # ------------------------------------------------------------
 # 3. ENV FILES
@@ -144,7 +147,7 @@ section "Environment files"
 
 while IFS= read -r -d '' f; do
     log_issue "HIGH" "ENV_FILE" ".env file with potential credentials" "$f"
-done < <(find "$TARGET" -type f -name ".env*" -print0 2>/dev/null)
+done < <(find "$TARGET" $EXCLUDE_PRUNE -type f -name ".env*" -print0 2>/dev/null)
 
 # ------------------------------------------------------------
 # GENERATE JSON REPORT
